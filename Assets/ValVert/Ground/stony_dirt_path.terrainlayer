@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1953259897 &8574412962073106934
+TerrainLayer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: stony_dirt_path
+  m_DiffuseTexture: {fileID: 2800000, guid: 3a881354ad61425088743d805c1b08e4, type: 3}
+  m_NormalMapTexture: {fileID: 2800000, guid: dbcc50610527bb4eeb373eb587b23138, type: 3}
+  m_MaskMapTexture: {fileID: 2800000, guid: 62c5d378dd81a82a382e1f0318374bb7, type: 3}
+  m_TileSize: {x: 2.5, y: 2.5}
+  m_TileOffset: {x: 0, y: 0}
+  m_Specular: {r: 0, g: 0, b: 0, a: 0}
+  m_Metallic: 0
+  m_Smoothness: 0
+  m_NormalScale: 1
+  m_DiffuseRemapMin: {x: 0, y: 0, z: 0, w: 0}
+  m_DiffuseRemapMax: {x: 1, y: 1, z: 1, w: 1}
+  m_MaskMapRemapMin: {x: 0, y: 0, z: 0, w: 0}
+  m_MaskMapRemapMax: {x: 0, y: 1, z: 1, w: 0.5}
+  m_SmoothnessSource: 1

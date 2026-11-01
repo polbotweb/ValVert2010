@@ -1,0 +1,68 @@
+Val Vert (Seynod) Unity project - third-party asset credits
+
+- tree_small_02 (model, Poly Haven) - used for: trees (2 LOD, autumn tints)
+  URL: https://polyhaven.com/a/tree_small_02
+  License: CC0 1.0 (public domain), https://polyhaven.com/license
+- island_tree_02 (model, Poly Haven) - used for: trees (2 LOD, autumn tints)
+  URL: https://polyhaven.com/a/island_tree_02
+  License: CC0 1.0 (public domain), https://polyhaven.com/license
+- shrub_02 (model, Poly Haven) - used for: forest-edge shrubs
+  URL: https://polyhaven.com/a/shrub_02
+  License: CC0 1.0 (public domain), https://polyhaven.com/license
+- fern_02 (model, Poly Haven) - used for: undergrowth ferns
+  URL: https://polyhaven.com/a/fern_02
+  License: CC0 1.0 (public domain), https://polyhaven.com/license
+- grass_medium_01 (model, Poly Haven) - used for: terrain detail grass
+  URL: https://polyhaven.com/a/grass_medium_01
+  License: CC0 1.0 (public domain), https://polyhaven.com/license
+- leafy_grass (texture, Poly Haven) - used for: terrain grass layer
+  URL: https://polyhaven.com/a/leafy_grass
+  License: CC0 1.0 (public domain), https://polyhaven.com/license
+- forest_leaves_02 (texture, Poly Haven) - used for: terrain forest floor layer
+  URL: https://polyhaven.com/a/forest_leaves_02
+  License: CC0 1.0 (public domain), https://polyhaven.com/license
+- stony_dirt_path (texture, Poly Haven) - used for: terrain + path mesh dirt
+  URL: https://polyhaven.com/a/stony_dirt_path
+  License: CC0 1.0 (public domain), https://polyhaven.com/license
+- gravel_road (texture, Poly Haven) - used for: terrain road layer + road mesh (tinted)
+  URL: https://polyhaven.com/a/gravel_road
+  License: CC0 1.0 (public domain), https://polyhaven.com/license
+- white_plaster_rough_01 (texture, Poly Haven) - used for: building walls
+  URL: https://polyhaven.com/a/white_plaster_rough_01
+  License: CC0 1.0 (public domain), https://polyhaven.com/license
+- grey_roof_tiles (texture, Poly Haven) - used for: building roofs
+  URL: https://polyhaven.com/a/grey_roof_tiles
+  License: CC0 1.0 (public domain), https://polyhaven.com/license
+- kloofendal_48d_partly_cloudy_puresky (hdri, Poly Haven) - used for: skybox
+  URL: https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky
+  License: CC0 1.0 (public domain), https://polyhaven.com/license
+
+Map data:
+- OpenStreetMap contributors (buildings, roads, paths, water, landuse, forest/wood outlines, individual trees, tree rows).
+  https://www.openstreetmap.org/copyright  License: Open Database License (ODbL) 1.0. (c) OpenStreetMap contributors.
+- IGN (Institut national de l'information geographique et forestiere): elevation data used for the terrain heightmap.
+  https://geoservices.ign.fr  License: Licence Ouverte / Open Licence Etalab 2.0.
+
+Code: ValVertSetup.cs, ValVertDress.cs and SimpleFPS.cs were written for this project. No paid or Asset Store assets are used.
+Engine: Unity 6 (6000.3.27f2) with URP, used under the Unity Editor Software Terms.
+
+--- v3 piranha / stores additions (2026-11-01) ---
+- Store, school, and bus-stop footprints and positions: OpenStreetMap contributors, ODbL.
+- Dam, tail fin, stone house, bollards, fences, bus shelter, and lamp posts: procedural Python meshes (self-made).
+- Signs (Aldi, Lidl, Grand Frais, École Barral, Sibra bus, pharmacy cross), board-formed concrete, beige stone, green fence, striped bollard, ornamental grass, shop front, and school facade: self-made PIL textures, derived from the Poly Haven CC0 concrete_wall_008 and rock_wall_08 where applicable.
+- Reference photos p07, p13, and z13: used for visual reference only, not shipped.
+
+--- v3 east extension / fish head / cars (2026-11-01) ---
+- East extension buildings, roads, parking lots, Lidl and pharmacy footprints: OpenStreetMap contributors, ODbL.
+- East terrain (RGE ALTI / MNT), outer ring DEM, ortho-photo 2006-2010 (ring_ortho2010.jpg, east_ortho.jpg) and canopy height (mnh.tif): IGN, Licence Ouverte Etalab 2.0.
+- Fish head (eyes, teeth, gills, jaw), stair railing, boxwood, conifers, outer ring mesh: procedural Python meshes (self-made).
+- Parking markings texture (parking.png), school facade tile, asphalt colouring: self-made (asphalt_02 from Poly Haven, CC0).
+- Cars (sedan, hatchback-sports, suv, van + colormap.png): Kenney "Car Kit" 3.1, www.kenney.nl, CC0 1.0 (copy of License.txt in Assets/Cars/; fetched from GitHub mirror Arslan12216775/kenney_car-kit).
+- École Barral complex: school polygon 1009134376, pitch 1009134377, gymnasium 62598026, public building 62596516 (OSM, ODbL); heights from IGN DSM/MNH (Etalab); yard/pitch/gym textures and préau mesh self-made.
+- École sign rendered with DejaVu Serif Bold (Bitstream Vera/DejaVu free licence).
+
+Poly Haven (CC0, polyhaven.com): grey_plaster, clay_roof_tiles, clay_roof_tiles_02, grey_roof_tiles_02, corrugated_iron_02, gravel_concrete (1k diffuse + normal GL).
+Building heights: IGN nDSM (MNS-MNT, Etalab 2.0); footprints OSM (ODbL); roof colours from IGN BD ORTHO 2006-2010 (Etalab 2.0).
+
+Cars: 'Sedan car' (sedan-car-42109739) and 'White four-door sedan' (white-four-door-sedan-1f271353), Innerscene 3D Parts Library, original models released CC0 (innerscene.com). Converted GLB->FBX with Blender; paints recoloured in Unity.
+Derived textures cladding_light_diff.png / gravel_grey_diff.png made from Poly Haven CC0 corrugated_iron_02 / gravel_concrete.
