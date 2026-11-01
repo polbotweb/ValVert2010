@@ -73,13 +73,14 @@ public static class ValVertSetup {
         sh("v3_piranha_stairs.png",new Vector3(460f,0,14f),new Vector3(-0.9f,0.08f,-0.42f));
         sh("v3_piranha_basin_whole.png",new Vector3(418f,0,-12f),new Vector3(0.73f,0.12f,0.69f));
         sh("v3_piranha_tail.png",new Vector3(439f,0,-4f),new Vector3(-0.25f,0.1f,1f));
-        shH("v3_grand_frais.png",new Vector3(452f,0,108f),new Vector3(0f,0.08f,1f),1.7f); sh("v3_boulangerie.png",new Vector3(249.0f,0,313.4f),new Vector3(-0.88f,0.1f,0.47f)); sh("v3_assedic.png",new Vector3(262.4f,0,269.6f),new Vector3(0.58f,0.1f,-0.81f)); shH("v3_assedic_y.png",new Vector3(222f,0,300f),new Vector3(0.47f,-0.40f,-0.79f),30f); shH("v3_gf_parking_lower.png",new Vector3(450f,0,112f),new Vector3(0.83f,0.02f,0.55f),1.6f); shH("v3_gf_parking_deck.png",new Vector3(408f,0,116.5f),new Vector3(1f,-0.05f,0.02f),1.7f); shH("v3_maison_orme.png",new Vector3(368f,0,197f),new Vector3(-1f,-0.08f,-0.05f),7f);
+        shH("v3_grand_frais.png",new Vector3(452f,0,108f),new Vector3(0f,0.08f,1f),1.7f); sh("v3_boulangerie.png",new Vector3(249.0f,0,313.4f),new Vector3(-0.88f,0.1f,0.47f)); sh("v3_assedic.png",new Vector3(262.4f,0,269.6f),new Vector3(0.58f,0.1f,-0.81f)); shH("v3_assedic_y.png",new Vector3(222f,0,300f),new Vector3(0.47f,-0.40f,-0.79f),30f); shH("v3_gf_parking_lower.png",new Vector3(450f,0,112f),new Vector3(0.83f,0.02f,0.55f),1.6f); shH("v3_gf_parking_deck.png",new Vector3(408f,0,116.5f),new Vector3(1f,-0.05f,0.02f),1.7f); sh("v3_maison_orme.png",new Vector3(346f,0,213f),new Vector3(-0.05f,0.1f,-1f));
         sh("v3_aldi.png",new Vector3(488f,0,58f),new Vector3(-1f,0.06f,0.15f));
         sh("v3_trois_fontaines.png",new Vector3(452f,0,-14f),new Vector3(0.45f,0.03f,0.9f));
-        sh("v3_st_feux.png",new Vector3(296f,0,168f),new Vector3(0.8f,-0.04f,0.6f));
+        sh("v3_st_feux.png",new Vector3(291f,0,177f),new Vector3(1f,0.03f,0.12f));
         sh("v3_st_abribus.png",new Vector3(503f,0,39f),new Vector3(0.85f,-0.03f,0.53f));
-        sh("v3_st_gifi.png",new Vector3(500f,0,132f),new Vector3(0.45f,0.05f,0.89f));
-        sh("v3_st_armataffet.png",new Vector3(428f,0,218f),new Vector3(0.6f,0.04f,-0.8f));
+        sh("v3_st_gifi.png",new Vector3(505.6f,0,146.7f),new Vector3(0.57f,0.17f,0.82f));
+        sh("v3_st_armataffet.png",new Vector3(498f,0,188.3f),new Vector3(-1f,0.22f,0f));
+        sh("v3_st_parking_ouest.png",new Vector3(-468f,0,-150f),new Vector3(-1f,-0.1f,0.05f));
         sh("v3_st_ouest.png",new Vector3(-468f,0,-150f),new Vector3(-1f,-0.02f,0.05f));
         sh("v3_st_rue.png",new Vector3(243f,0,300f),new Vector3(0.3f,-0.05f,-1f));
         shH("v3_st_air.png",new Vector3(300f,0,120f),new Vector3(0.5f,-0.55f,0.65f),55f);
