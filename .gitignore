@@ -52,3 +52,9 @@ crashlytics-build.properties
 # Herbe générée (1536 chunks, ~406 Mo) : régénérée par ValVertWoods.Grass()
 /Assets/ValVert/Gen/grass_*.asset
 /Assets/ValVert/Gen/grass_*.asset.meta
+# Gros maillages générés (quota LFS) : régénérés par ValVertSetup.Build()
+/Assets/ValVert/Gen/m_Bld_kerb.asset
+/Assets/ValVert/Gen/m_Bld_white_trim.asset
+/Assets/ValVert/Gen/m_Bld_facade.asset
+/Assets/ValVert/Gen/m_Bld_metal.asset
+/Assets/ValVert/Gen/m_OuterRing.asset

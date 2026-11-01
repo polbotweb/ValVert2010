@@ -9,7 +9,9 @@ Les bâtiments, les rues et les chemins viennent d'OpenStreetMap. Le relief, la 
 3. Unity Hub > **Add** > choisir le dossier du projet.
 4. Ouvrir la scène **Assets/Scenes/ValVert.unity**.
 
-> Note : l'herbe générée (`Assets/ValVert/Gen/grass_*.asset`, environ 400 Mo) n'est pas dans le dépôt. Elle est recréée par `ValVertWoods.Grass()`, appelé depuis `ValVertSetup.Build()`. Sans elle, la scène s'ouvre quand même, mais sans les touffes d'herbe.
+> Note : les gros maillages générés (`Assets/ValVert/Gen/m_Bld_kerb`, `m_Bld_white_trim`, `m_Bld_facade`, `m_Bld_metal`, `m_OuterRing` en `.asset`, de 20 à 135 Mo chacun) ne sont pas dans le dépôt, pour rester dans le quota gratuit. Ils sont régénérés par `ValVertSetup.Build()`. Leurs fichiers `.meta` sont gardés, pour que la scène retrouve ses références.
+>
+> De même, l'herbe générée (`Assets/ValVert/Gen/grass_*.asset`, environ 400 Mo) n'est pas dans le dépôt. Elle est recréée par `ValVertWoods.Grass()`, appelé depuis `ValVertSetup.Build()`. Sans elle, la scène s'ouvre quand même, mais sans les touffes d'herbe.
 
 ## Contenu
 - `Assets/` : le projet Unity (scènes, scripts d'éditeur dans `Assets/Editor`, maillages générés).
