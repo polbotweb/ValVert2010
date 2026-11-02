@@ -85,7 +85,9 @@ def wall_bays(p,g,ytop,kind,tone,rnd,shutters=True):
                     elif kind=='bakery': row=2
                     else: row=rnd.choice([2,11,11,10,9])
                 if MZ[0] and kind=='apt' and bw>=2.0: row=(2 if (s==0 and i==longest and j==mid) else rnd.choice([4,4,5,6])); ENT.append((q0,q1,d,out,y0,bw)) if row==2 else None
-                if kind=='apt' and row==3 and not OFFICE[0]: row=rnd.choice([3,3,12,13,14])      # roller shutters at varied heights
+                if NO5[0] and kind=='apt' and row not in(6,):   # no 5 (photo): plain white walls, recessed vertical window strips, small balconies only on the right part
+                    row=(4 if (j>=nb-2 and L>9 and s>=1) else 3) if j%3==1 else 2
+                elif kind=='apt' and row==3 and not OFFICE[0]: row=rnd.choice([3,3,12,13,14])      # roller shutters at varied heights
                 if kind=='house' and row==0 and rnd.random()<0.4: row=15
                 if s==0 and ((kind=='apt' and row==6) or (kind=='house' and row==1)): ENT.append((q0,q1,d,out,y0,bw))
                 b_quad('facade',(q0[0],y0,q0[1]),(q1[0],y0,q1[1]),(q1[0],y1,q1[1]),(q0[0],y1,q0[1]),cell(tone,row,0.03,0.09,0.93,0.98) if kind=='bakery' else cell(tone,row,0,1,0.0,1.0),out)
@@ -214,7 +216,7 @@ def porches(kind,c0):
             b_quad('housenum',(a_[0],yp,a_[1]),(b_[0],yp,b_[1]),(b_[0],yp+0.2,b_[1]),(a_[0],yp+0.2,a_[1]),[(u0,0),(u1,0),(u1,1),(u0,1)],out)
         NPLATES[0]+=1
 exec(open('/workspace/v3/names.py').read())
-MAISON_TONE=1; MZ=[False]; G168=[False]; YT={}; BI={}; BL=[]; nb_=dict(house=0,apt=0,comm=0,small=0); rc_={}
+MAISON_TONE=1; NO5=[False]; MZ=[False]; G168=[False]; YT={}; BI={}; BL=[]; nb_=dict(house=0,apt=0,comm=0,small=0); rc_={}
 for e in _osm:
     if e['type']!='way' or 'building' not in e.get('tags',{}) or e['nodes'][0]!=e['nodes'][-1]: continue
     if e['id'] in (62590936,62592236): continue   # 62592236 = bin-store row behind #168, built in env168.py
@@ -241,7 +243,7 @@ for e in _osm:
     elif ar>260 and top>5: kind='apt'
     elif ar<45 or bt in('garage','garages','shed','roof','service'): kind='small'
     else: kind='house'
-    MZ[0]=e['id']==62594137; G168[0]=e['id']==62591705
+    MZ[0]=e['id']==62594137; G168[0]=e['id']==62591705; NO5[0]=e['id']==62597331
     if e['id']==62597331: top=17.5   # stepped block: low wings ~17-19 m nDSM, raised middle added in env168.py
     if e['id']==62594137: kind='apt'; top=max(top,10.6)   # rue de l'Orme (OSM 62594137 apartments, 3 levels; nDSM p50 10.6 m) -> flat roof, parapet, gravel
     OFFICE[0]=bool(np.hypot(c0[0]-258.4,c0[1]-244.3)<5)   # ASSEDIC Croix de Barral: rendered office, ribbon windows, nDSM 9.4 m -> 3 storeys

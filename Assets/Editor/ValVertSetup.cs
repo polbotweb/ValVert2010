@@ -74,11 +74,17 @@ public static class ValVertSetup {
         sh("v3_piranha_basin_whole.png",new Vector3(418f,0,-12f),new Vector3(0.73f,0.12f,0.69f));
         sh("v3_piranha_tail.png",new Vector3(439f,0,-4f),new Vector3(-0.25f,0.1f,1f));
         System.Action<string,Vector3,Vector3,float> shF=(n,pos,look,up)=>{ float gy2=terr.SampleHeight(pos)+tgo.transform.position.y; oc.transform.position=new Vector3(pos.x,gy2+up,pos.z); oc.transform.rotation=Quaternion.LookRotation(look); oc.fieldOfView=70; Shot(oc,SHOTS+n); oc.fieldOfView=60; };
-        shF("cmp9_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.32f,0.18f),1.6f);
-        shF("cmp9_facade.png",new Vector3(359.6f,0,140.5f),new Vector3(1f,-0.05f,0.08f),1.6f);
-        shF("cmp9_orme.png",new Vector3(338f,0,222f),new Vector3(0.05f,0.0f,-1f),1.6f);
-        shF("cmp9_alley_above.png",new Vector3(372.3f,0,127.3f),new Vector3(-0.12f,-0.6f,1f),10f);
-        shF("cmp9_stepped.png",new Vector3(378f,0,115.3f),new Vector3(-0.1f,-0.4f,-1f),17f);
+        { // OVERCAST preset (comparison shots only): flat grey sky, soft light, no blue patches; restored afterwards
+          var sunL=GameObject.Find("Sun").GetComponent<Light>(); float si=sunL.intensity; var ssh=sunL.shadows; var sc=sunL.color; var sky0=RenderSettings.skybox; var am0=RenderSettings.ambientMode; var ac0=RenderSettings.ambientLight; float ai0=RenderSettings.ambientIntensity; var cf0=oc.clearFlags; var bg0=oc.backgroundColor; var fc0=RenderSettings.fogColor; float fd0=RenderSettings.fogDensity;
+          sunL.intensity=0.35f; sunL.shadows=LightShadows.Soft; sunL.shadowStrength=0.35f; sunL.color=new Color(.92f,.94f,.97f);
+          RenderSettings.skybox=null; oc.clearFlags=CameraClearFlags.SolidColor; oc.backgroundColor=new Color(.80f,.81f,.82f);
+          RenderSettings.ambientMode=UnityEngine.Rendering.AmbientMode.Flat; RenderSettings.ambientLight=new Color(.78f,.79f,.80f); RenderSettings.fogColor=new Color(.80f,.81f,.82f); RenderSettings.fogDensity=0.004f;
+          shF("cmp9_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f);
+          shF("cmp9_facade.png",new Vector3(356.8f,0,141.5f),new Vector3(1f,-0.12f,0.06f),4.2f);
+          shF("cmp9_orme.png",new Vector3(338.3f,0,218.8f),new Vector3(0.12f,0.0f,-1f),1.6f);
+          shF("cmp9_alley_above.png",new Vector3(372.3f,0,127.3f),new Vector3(-0.12f,-0.6f,1f),10f);
+          shF("cmp9_stepped.png",new Vector3(378f,0,115.3f),new Vector3(0.1f,-0.42f,-1f),17f);
+          sunL.intensity=si; sunL.shadows=ssh; sunL.shadowStrength=1f; sunL.color=sc; RenderSettings.skybox=sky0; RenderSettings.ambientMode=am0; RenderSettings.ambientLight=ac0; RenderSettings.ambientIntensity=ai0; oc.clearFlags=cf0; oc.backgroundColor=bg0; RenderSettings.fogColor=fc0; RenderSettings.fogDensity=fd0; }
         shH("v3_grand_frais.png",new Vector3(452f,0,108f),new Vector3(0f,0.08f,1f),1.7f); sh("v3_boulangerie.png",new Vector3(249.0f,0,313.4f),new Vector3(-0.88f,0.1f,0.47f)); sh("v3_assedic.png",new Vector3(262.4f,0,269.6f),new Vector3(0.58f,0.1f,-0.81f)); shH("v3_assedic_y.png",new Vector3(222f,0,300f),new Vector3(0.47f,-0.40f,-0.79f),30f); shH("v3_gf_parking_lower.png",new Vector3(450f,0,112f),new Vector3(0.83f,0.02f,0.55f),1.6f); shH("v3_gf_parking_deck.png",new Vector3(408f,0,116.5f),new Vector3(1f,-0.05f,0.02f),1.7f); sh("v3_maison_orme.png",new Vector3(346f,0,213f),new Vector3(-0.05f,0.1f,-1f)); sh("v3_168_binstore.png",new Vector3(368.2f,0,126f),new Vector3(-0.42f,0.12f,0.9f)); sh("v3_168_logstairs.png",new Vector3(353.5f,0,145.2f),new Vector3(0.95f,-0.12f,-0.15f)); shH("v3_168_ruelle_haut.png",new Vector3(371.5f,0,121f),new Vector3(-0.05f,-0.45f,1f),10f); shH("v3_stepped_from168.png",new Vector3(378f,0,115.3f),new Vector3(-0.1f,-0.4f,-1f),17f); sh("v3_orme_from_path.png",new Vector3(338f,0,222f),new Vector3(0.05f,0.05f,-1f));
         sh("v3_aldi.png",new Vector3(488f,0,58f),new Vector3(-1f,0.06f,0.15f));
         sh("v3_trois_fontaines.png",new Vector3(452f,0,-14f),new Vector3(0.45f,0.03f,0.9f));

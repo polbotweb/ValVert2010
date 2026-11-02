@@ -107,8 +107,8 @@ public static class ValVertDress {
             if(!clear(x,z,0.6f)) continue; add(pickVar()*2,x,z,th); no++; }
         L("osm street trees west "+no+" east "+otE.Count/3);
         { int nb=0; for(float bx=352.5f;bx<361.0f;bx+=1.3f) for(float bz=117.5f;bz<166f;bz+=1.3f){ float px=bx+(R()-0.5f)*0.9f, pz=bz+(R()-0.5f)*0.9f;   // #168 bank behind the alley (user photos): dense evergreen understorey + tall green trees
-              if(pz>129.6f&&pz<135.6f&&px>340f) continue; add(R()<0.85f?7:6,px,pz,1.4f+R()*1.4f); nb++;
-              if(R()<0.09f) { add(R()<0.5f?4:5,px,pz,13f+R()*7f); nb++; } } L("bank168 veg "+nb); }
+              if(pz>129.6f&&pz<135.6f&&px>340f) continue; add(7,px,pz,2.4f+R()*1.8f); nb++;
+              if(R()<0.14f) { add(R()<0.5f?4:5,px,pz,16f+R()*8f); nb++; } } L("bank168 veg "+nb); }
         td.SetTreeInstances(list.ToArray(),true);
         if(ValVertWoods.East){ var et=ValVertWoods.East.terrainData; et.treePrototypes=td.treePrototypes; var el=new List<TreeInstance>();
             var em=JsonUtility.FromJson<ValVertWoods.ML>(File.ReadAllText(SRC+"east_meshes.json"));

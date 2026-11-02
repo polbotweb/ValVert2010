@@ -73,8 +73,8 @@ for k in range(ns):
     t0=k*tr; q=A+d*(t0+tr*0.5); y=hA+(k+1)*rise/ns
     e=A+d*t0; seg('pole_wood',(e[0]-sd[0]*0.6,y-0.02,e[1]-sd[1]*0.6),(e[0]+sd[0]*0.6,y-0.02,e[1]+sd[1]*0.6),0.07); nenv['steps']+=1
     sq=[tuple(e-sd*0.6),tuple(e+sd*0.6),tuple(e+sd*0.6+d*tr),tuple(e-sd*0.6+d*tr)]
-    b_quad('leafground',(sq[0][0],y,sq[0][1]),(sq[1][0],y,sq[1][1]),(sq[2][0],y,sq[2][1]),(sq[3][0],y,sq[3][1]),[(0,0),(.5,0),(.5,.5),(0,.5)],np.array([0,1.,0]))
-    for sgn in(-1,1): b_quad('bed_soil',(sq[0][0],y,sq[0][1]) if sgn<0 else (sq[1][0],y,sq[1][1]),(sq[0][0],y-0.19,sq[0][1]) if sgn<0 else (sq[1][0],y-0.19,sq[1][1]),(sq[0][0],y-0.19,sq[0][1]),(sq[0][0],y,sq[0][1]),[(0,0),(1,0),(1,1),(0,1)],np.array([0,0,1.]))
+    b_quad('stair_earth',(sq[0][0],y,sq[0][1]),(sq[1][0],y,sq[1][1]),(sq[2][0],y,sq[2][1]),(sq[3][0],y,sq[3][1]),[(0,0),(.5,0),(.5,.5),(0,.5)],np.array([0,1.,0]))
+    for sgn in(-1,1): b_quad('stair_earth',(sq[0][0],y,sq[0][1]) if sgn<0 else (sq[1][0],y,sq[1][1]),(sq[0][0],y-0.19,sq[0][1]) if sgn<0 else (sq[1][0],y-0.19,sq[1][1]),(sq[0][0],y-0.19,sq[0][1]),(sq[0][0],y,sq[0][1]),[(0,0),(1,0),(1,1),(0,1)],np.array([0,0,1.]))
 Bs=A+d*Ls
 print('log stair', ns,'steps', round(hA,2), round(hB,2), round(Ls,1))
 def railf(p0,p1,y0,y1,n=None):
@@ -124,7 +124,8 @@ mono(mid,ytm5,2.2,np.array([1.,0]))
 mono([[357.2,74.3],[370.7,74.4],[370.7,85.6],[357.1,85.6]],yt5,1.6,np.array([1.,0]))
 mono([[364.4,85.6],[376.3,85.8],[376.3,92.7],[364.4,92.8]],yt5,1.4,np.array([0.,-1]))
 # ping-pong table, paved footpath, black lamp post on the lawn between no 5 and #168
-pc=np.array([371.5,104.5]); yg=Hc(*pc); b_box('concrete_board',(pc[0],yg+0.7,pc[1]),(2.74,0.08,1.525),0.05)
+pc=np.array([377.0,106.5]);   # photo 01M6E4QR0V: centre of the lawn, foreground below #168 window
+yg=Hc(*pc); b_box('concrete_board',(pc[0],yg+0.7,pc[1]),(2.74,0.08,1.525),0.05)
 for s1 in(-0.8,0.8): b_box('concrete_board',(pc[0]+s1,yg-0.1,pc[1]+s1*0.04),(0.25,0.8,1.2),0.05)
 b_box('metal',(pc[0],yg+0.78,pc[1]),(0.06,0.15,1.6),0.05)
 pth=[(352.0,100.0),(362.0,101.5),(372.0,100.5),(382.0,102.0),(392.0,106.0)]; PL=[];PR=[]
@@ -137,3 +138,28 @@ lq=np.array([378.5,99.2]); yl=Hc(*lq); b_box('lamp_black',(lq[0],yl-0.2,lq[1]),(
 for m_,(V_,T_,UV_) in M.items(): addmesh('Env_'+m_,m_,V_,T_,UV_)
 M.clear(); M.update(_Ms)
 print('env168',nenv)
+
+# --- disabled bay in the OSM surface car park nearest the lawn (photo 01M6E4QR0V, left)
+_best=None
+for e in WY.values():
+    t=e.get('tags',{})
+    if t.get('amenity')!='parking': continue
+    r=np.array([W2(n) for n in e['nodes'] if n in ND])
+    if len(r)<3: continue
+    dd=np.linalg.norm(r.mean(0)-np.array([385.0,95.0]))
+    if _best is None or dd<_best[0]: _best=(dd,e['id'],r)
+if _best and _best[0]<60:
+    r=_best[2]; c=r.mean(0); q=r[np.argmin([np.linalg.norm(p-np.array([380.0,100.0])) for p in r])]; q=q+(c-q)/np.linalg.norm(c-q)*3.5
+    y=Hc(*q)+0.18; b_box('sign_blue_bay',(q[0],y-0.17,q[1]),(2.5,0.02,5.0),math.atan2(*(c-q)[::-1]))
+    print('disabled bay in parking',_best[1],'at',q.round(1),'dist',round(_best[0],1))
+else: print('no parking near lawn', _best[0] if _best else None, _best[2].mean(0).round(1) if _best else None)
+_q=np.array([394.5,84.0]); b_box('sign_blue_bay',(_q[0],Hc(*_q)+0.01,_q[1]),(2.5,0.02,5.0),math.pi/2); print('bay at service 1041919859 east kerb',_q)
+_sv=[]
+for e in WY.values():
+    t=e.get('tags',{})
+    if t.get('highway') in('service',) or t.get('amenity')=='parking':
+        r=np.array([W2(n) for n in e['nodes'] if n in ND])
+        if len(r): _sv.append((round(float(np.min(np.linalg.norm(r-np.array([385.0,95.0]),axis=1))),1),e['id'],t.get('highway') or 'parking',r.round(0).tolist()[:6]))
+for z_ in sorted(_sv)[:5]: print('NEAR',z_)
+# --- leaf litter on the path toward the Maison rue de l'Orme (photo 01M6E4PR55)
+lp=[(335.0,213.5),(342.0,213.5),(342.0,226.0),(335.0,226.0)]; drape(lp,'leafground',0.05,lambda x,z:(x/3.0,z/3.0),0.7)

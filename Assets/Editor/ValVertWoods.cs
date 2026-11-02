@@ -108,6 +108,8 @@ public static class ValVertWoods {
             {"corr_leaves",M("corr_leaves",ValVertDress.Tex(GEN+"corrugated_leaves.png"),ValVertDress.Tex(GEN+"corrugated_iron_02_nor_gl_1k.jpg",true),new Color(1f,1f,1f),0.1f).Also()},
             {"leafground",M("leafground",ValVertDress.Tex(G+"forest_leaves_02_diff.jpg"),ValVertDress.Tex(G+"forest_leaves_02_nor.jpg",true),new Color(.9f,.8f,.7f),0.05f)},
             {"asphalt_leaves",M("asphalt_leaves",ValVertDress.Tex(GEN+"asphalt_leaves.png"),ValVertDress.Tex(G+"asphalt_02_nor.jpg",true),new Color(1f,1f,1f),0.12f)},
+            {"stair_earth",M("stair_earth",ValVertDress.Tex(G+"forest_leaves_02_diff.jpg"),ValVertDress.Tex(G+"forest_leaves_02_nor.jpg",true),new Color(1.35f,1.15f,.9f),0.05f)},
+            {"sign_blue_bay",M("sign_blue_bay",null,null,new Color(.08f,.3f,.75f),0.2f)},
             {"bed_soil",M("bed_soil",ValVertDress.Tex(G+"stony_dirt_path_diff.jpg"),null,new Color(.55f,.45f,.38f),0.05f)},
             {"glass_green",M("glass_green",null,null,new Color(.42f,.62f,.45f),0.8f,0.2f)},
             {"door_maroon",M("door_maroon",ValVertDress.Tex(GEN+"corrugated_iron_02_diff_1k.jpg"),null,new Color(.45f,.16f,.17f),0.3f)},
@@ -194,7 +196,9 @@ public static class ValVertWoods {
                     {580,-76,90},{580,-63,95},{573,-74,88},{566,-66,92},
                     {467,103,90},{461,103,270},{443,103.5f,92},
                     {437.5f,112f,0},{453.5f,121f,180},{445.5f,112.2f,2},
-                    {434f,111.4f,0},{444f,121.7f,180},{456.5f,111.5f,3}};  // last 3 = GF roof deck (OSM 62591761)
+                    {434f,111.4f,0},{444f,121.7f,180},{456.5f,111.5f,3}};
+        float[,] PO={{333f,206.8f,92},{338.6f,207.2f,268},{344.2f,206.6f,90}};   // Orme car park (user photo 01M6E4PR55): 3 parked cars
+        { var Pn=new float[P.GetLength(0)+3,3]; for(int i=0;i<3;i++)for(int k=0;k<3;k++) Pn[i,k]=PO[i,k]; for(int i=0;i<P.GetLength(0);i++)for(int k=0;k<3;k++) Pn[i+3,k]=P[i,k]; P=Pn; }  // last 3 = GF roof deck (OSM 62591761)
         int DECK0=P.GetLength(0)-3;
         var tm=Terrain.activeTerrain;
         for(int i=0;i<P.GetLength(0);i++){
