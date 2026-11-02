@@ -28,44 +28,64 @@ for (x,z) in [(373.5,128.5),(373.5,139.0),(374.6,156.2)]:
     b_box('metal',(x-0.05,yg,z),(0.08,2.45,1.9),0); b_box('glass_door',(x-0.09,yg,z),(0.02,2.35,1.8),0)
     b_box('coping',(x-0.6,yg+2.6,z),(1.2,0.12,2.4),0)
 # B) bin-store row (OSM 62592236, 3.5 x 12.3 m): grey render, grey metal doors, leaf-covered corrugated roof, gutter + downpipe
-bs=np.array([[365.5,146.7],[362.0,146.9],[361.4,134.6],[364.9,134.4]]); gb=min(Hc(*q) for q in bs)-0.2; ytb=max(Hc(*q) for q in bs)+2.3
-ctr=bs.mean(0); ax=(bs[0]-bs[3])/np.linalg.norm(bs[0]-bs[3]); yaw=math.atan2(ax[1],ax[0]); nx=np.array([ax[1],-ax[0]])   # nx: east (towards #168)
-b_box('render_grey',(ctr[0],gb,ctr[1]),(12.3,ytb-gb,3.5),yaw)
-rf=[ctr+ax*s1*6.55+nx*s2*2.05 for s1,s2 in((-1,-1),(1,-1),(1,1),(-1,1))]
-yr=lambda q:ytb+0.25-0.25*np.dot(q-ctr,nx)/2.05   # mono-slope falling towards the path side
-V4=[(q[0],yr(q),q[1]) for q in rf]
-b_quad('corr_leaves',V4[0],V4[1],V4[2],V4[3],[(0,0),(4,0),(4,1.4),(0,1.4)],np.array([0,1.,0]))
-b_quad('metal',(V4[0][0],V4[0][1]-0.08,V4[0][2]),(V4[1][0],V4[1][1]-0.08,V4[1][2]),(V4[2][0],V4[2][1]-0.08,V4[2][2]),(V4[3][0],V4[3][1]-0.08,V4[3][2]),[(0,0),(1,0),(1,1),(0,1)],np.array([0,-1.,0]))
-gq=ctr+nx*2.12; b_box('metal',(gq[0],ytb-0.12,gq[1]),(13.1,0.14,0.16),yaw)          # gutter (path side)
-dq=ctr+nx*2.1+ax*6.2; b_box('metal',(dq[0],gb,dq[1]),(0.1,ytb-gb,0.1),0)
-for k in range(4):                                                                 # grey steel doors on the path side
-    q=ctr+ax*(-4.6+k*3.07)+nx*1.77; b_box('metal',(q[0],gb+0.2,q[1]),(1.3,2.0,0.05),yaw); b_box('metal',(q[0]+ax[0]*0.45+nx[0]*0.04,gb+1.1,q[1]+ax[1]*0.45+nx[1]*0.04),(0.05,0.2,0.04),yaw)
+bs=np.array([[365.5+0.6,158.0],[362.0+0.6,158.2],[361.4,134.6],[364.9,134.4]])   # OSM 62592236 extended north along the alley (user photo 01M6E4PR55/PQFA: long low block)
+gb=min(Hc(*q) for q in bs)-0.2; ytb=max(Hc(*q) for q in bs)+2.2
+ctr=bs.mean(0); ax=(bs[0]-bs[3])/np.linalg.norm(bs[0]-bs[3]); Lb=np.linalg.norm(bs[0]-bs[3]); yaw=math.atan2(ax[1],ax[0]); nx=np.array([ax[1],-ax[0]])
+if nx[0]<0: nx=-nx
+b_box('render_grey',(ctr[0],gb,ctr[1]),(Lb,ytb-gb,3.5),yaw)
+b_box('concrete_board',(ctr[0]+nx[0]*0.2,ytb,ctr[1]+nx[1]*0.2),(Lb+0.8,0.22,4.3),yaw)          # flat concrete roof slab with overhang
+rf=[ctr+nx*0.2+ax*s1*(Lb/2+0.38)+nx*s2*2.12 for s1,s2 in((-1,-1),(1,-1),(1,1),(-1,1))]
+V4=[(q[0],ytb+0.235,q[1]) for q in rf]
+b_quad('leafground',V4[0],V4[1],V4[2],V4[3],[(0,0),(Lb/3,0),(Lb/3,1.4),(0,1.4)],np.array([0,1.,0]))
+nd_=int(Lb/3.1)
+for k in range(nd_):                                                                 # grey steel doors on the path side
+    q=ctr+ax*(-Lb/2+1.6+k*(Lb-3.2)/max(1,nd_-1))+nx*1.77; b_box('metal',(q[0],gb+0.2,q[1]),(1.3,2.0,0.05),yaw)
 HIDE.extend([float(v) for q in bs for v in q]); HIDEL.append(4)
 # C) leaf/dirt ground between #168 and the woods, timber-edged planted beds, log staircase up to the OSM woods path 260433017
-lg=[(354.0,117.5),(373.4,117.5),(373.4,166.0),(354.0,166.0)]
-drape(lg,'leafground',0.06,lambda x,z:(x/3.0,z/3.0),1.0); HIDE.extend([v for q in lg for v in q]); HIDEL.append(4)
+# user photo 01M6E4PNA47J: steep (~32 deg) timber-edged earth stair from the asphalt alley at the S end of the bin store straight up the bank to the woods path -> local regrade (allowed by user)
+A=np.array([361.6,132.6]); _pw=[np.array(W2(n_)) for n_ in WY[260433017]['nodes'] if n_ in ND]; _pp=[]
+for a_,b_ in zip(_pw[:-1],_pw[1:]):
+    for t_ in np.linspace(0,1,15): _pp.append(a_+(b_-a_)*t_)
+_c=[q for q in _pp if q[0]<A[0]-5 and np.linalg.norm(q-A)<26]
+B=min(_c,key=lambda q:np.linalg.norm(q-A)) if _c else np.array([350.0,131.0])
+hA=Hc(*A); hB0=Hc(*B); L=np.linalg.norm(B-A); d=(B-A)/L; sd=np.array([-d[1],d[0]])
+SLOPE=0.64; rise=max(hB0-hA,3.6); Ls=min(L-0.5,rise/SLOPE); rise=Ls*SLOPE; hB=hA+rise
+_ix=np.where((GX>A[0]-30)&(GX<A[0]+2))[0]; _iz=np.where((GZ>A[1]-25)&(GZ<A[1]+25))[0]
+XX,ZZ=np.meshgrid(GX[_ix],GZ[_iz]); dx=XX-A[0]; dz=ZZ-A[1]; tt=dx*d[0]+dz*d[1]; ss=np.abs(dx*sd[0]+dz*sd[1])
+tgt=hA+np.clip(tt,0,None)*SLOPE; tgt=np.minimum(tgt,hB)
+wgt=np.clip(1-(ss-2.0)/9.0,0,1)*np.clip((tt+0.3)/0.6,0,1)*np.clip(1-(tt-L)/6.0,0,1)*(XX<A[0]+0.2)
+sub=h[np.ix_(_iz,_ix)]; h[np.ix_(_iz,_ix)]=sub*(1-wgt)+tgt*wgt
+hv=np.clip(np.round((h-0.002)/80.056*65535),0,65535).astype('<u2'); hv.tofile('/workspace/valvert/clean/heightmap_v3.raw')
+print('stair168 regrade A',A.round(1),'B',B.round(1),'hA',round(hA,2),'hB0',round(hB0,2),'L',round(L,1),'Ls',round(Ls,1),'rise',round(rise,2))
+# ground: asphalt + leaf litter on the whole alley (wall of #168 -> bin store), leaf/dirt only on the wooded bank
+al=[(361.2,117.5),(373.4,117.5),(373.4,166.0),(366.4,166.0),(366.4,134.2),(361.2,134.2)]
+drape(al,'asphalt_leaves',0.06,lambda x,z:(x/4.0,z/4.0),0.8); HIDE.extend([v for q in al for v in q]); HIDEL.append(len(al))
+bk=[(352.0,117.5),(361.2,117.5),(361.2,166.0),(352.0,166.0)]
+drape(bk,'leafground',0.05,lambda x,z:(x/3.0,z/3.0),0.8)
+gq=(367.9,131.0); b_box('metal',(gq[0],Hc(*gq)+0.04,gq[1]),(0.5,0.035,0.8),0)                     # drain grate
 for z0,z1 in((119.0,126.0),(131.0,137.0),(142.0,153.5)):
     bed=[(369.6,z0),(373.3,z0),(373.3,z1),(369.6,z1)]; drape(bed,'bed_soil',0.1,lambda x,z:(x/2.0,z/2.0),0.5)
     fence([(373.3,z0),(369.6,z0),(369.6,z1),(373.3,z1)],h=0.55,step=2.2,rails=(0.4,))
     for k in range(int((z1-z0)/1.6)):
         q=(371.4+(k%2-0.5)*1.2,z0+0.8+k*1.6); b_box('hedge',(q[0],Hc(*q)-0.05,q[1]),(1.1,0.75,1.1),k*0.7)
-A=np.array([361.0,148.3]); _pw=[np.array(W2(n_)) for n_ in WY[260433017]['nodes'] if n_ in ND]; _pp=[]
-for a_,b_ in zip(_pw[:-1],_pw[1:]):
-    for t_ in np.linspace(0,1,12): _pp.append(a_+(b_-a_)*t_)
-_c=[((Hc(*q)-Hc(*A))/np.linalg.norm(q-A),q) for q in _pp if 6<np.linalg.norm(q-A)<20]
-B=max(_c,key=lambda z:z[0])[1] if _c else np.array([351.3,144.5]); print('stair top candidates best slope',round(max(z[0] for z in _c),2) if _c else None)
-hA=Hc(*A); hB=Hc(*B); L=np.linalg.norm(B-A); d=(B-A)/L; sd=np.array([-d[1],d[0]])
-print('log stair', round(hA,2), round(hB,2), round(L,1))
-ns=max(8,int(math.ceil(abs(hB-hA)/0.16))); 
+ns=int(math.ceil(rise/0.18)); tr=Ls/ns
 for k in range(ns):
-    q=A+d*L*(k+0.5)/ns; y=Hc(*q)
-    y=hA+(hB-hA)*(k+0.5)/ns; y=max(y,Hc(*q)-0.05)
-    seg('pole_wood',(q[0]-sd[0]*0.65,y+0.08,q[1]-sd[1]*0.65),(q[0]+sd[0]*0.65,y+0.08,q[1]+sd[1]*0.65),0.08); nenv['steps']+=1
-    sq=[tuple(q-sd*0.62-d*L/ns*0.5),tuple(q+sd*0.62-d*L/ns*0.5),tuple(q+sd*0.62+d*L/ns*0.5),tuple(q-sd*0.62+d*L/ns*0.5)]
-    b_quad('leafground',(sq[0][0],y+0.01,sq[0][1]),(sq[1][0],y+0.01,sq[1][1]),(sq[2][0],y+0.01,sq[2][1]),(sq[3][0],y+0.01,sq[3][1]),[(0,0),(.5,0),(.5,.5),(0,.5)],np.array([0,1.,0]))
-st=[A+d*t for t in np.linspace(0,L,8)]
-drape([tuple(A-sd*0.75),tuple(A+sd*0.75),tuple(B+sd*0.75),tuple(B-sd*0.75)],'leafground',0.09,lambda x,z:(x/2.0,z/2.0),0.5)
-fence([A-sd*0.85,B-sd*0.85]); fence([A+sd*0.85,B+sd*0.85]); fence([(366.2,134.0),(366.2,118.5)])
+    t0=k*tr; q=A+d*(t0+tr*0.5); y=hA+(k+1)*rise/ns
+    e=A+d*t0; seg('pole_wood',(e[0]-sd[0]*0.6,y-0.02,e[1]-sd[1]*0.6),(e[0]+sd[0]*0.6,y-0.02,e[1]+sd[1]*0.6),0.07); nenv['steps']+=1
+    sq=[tuple(e-sd*0.6),tuple(e+sd*0.6),tuple(e+sd*0.6+d*tr),tuple(e-sd*0.6+d*tr)]
+    b_quad('leafground',(sq[0][0],y,sq[0][1]),(sq[1][0],y,sq[1][1]),(sq[2][0],y,sq[2][1]),(sq[3][0],y,sq[3][1]),[(0,0),(.5,0),(.5,.5),(0,.5)],np.array([0,1.,0]))
+    for sgn in(-1,1): b_quad('bed_soil',(sq[0][0],y,sq[0][1]) if sgn<0 else (sq[1][0],y,sq[1][1]),(sq[0][0],y-0.19,sq[0][1]) if sgn<0 else (sq[1][0],y-0.19,sq[1][1]),(sq[0][0],y-0.19,sq[0][1]),(sq[0][0],y,sq[0][1]),[(0,0),(1,0),(1,1),(0,1)],np.array([0,0,1.]))
+Bs=A+d*Ls
+print('log stair', ns,'steps', round(hA,2), round(hB,2), round(Ls,1))
+def railf(p0,p1,y0,y1,n=None):
+    n=n or max(2,int(np.linalg.norm(p1-p0)/1.6))
+    for k in range(n+1):
+        q=p0+(p1-p0)*k/n; yy=y0+(y1-y0)*k/n; b_box('pole_wood',(q[0],yy-0.3,q[1]),(0.14,1.25,0.14),0)
+    for rh in(0.5,0.9): seg('pole_wood',(p0[0],y0+rh,p0[1]),(p1[0],y1+rh,p1[1]),0.055)
+railf(A-sd*0.85,Bs-sd*0.85,hA,hB)                       # left round-timber rail fence (posts + 2 rails)
+railf(Bs+sd*0.85-d*2.2,Bs+sd*0.85+d*0.6,hB-2.2*SLOPE,hB,2)   # short right fence at the top
+rk=A-sd*1.9-d*0.2; b_box('rock',(rk[0],Hc(*rk)-0.3,rk[1]),(1.6,1.0,1.3),0.4)   # big grey rock bottom-left
+fence([(366.2,134.0),(366.2,118.5)]) if False else None
 # D) Maison rue de l'Orme (OSM 62594137): green glazed stairwell, maroon garage doors, rock-edged car park, lamp post
 pm,gm,ybm,_,_=BI[62594137]; ytm=YT[62594137]; n=len(pm); best=None
 for i in range(n):

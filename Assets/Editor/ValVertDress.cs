@@ -75,7 +75,7 @@ public static class ValVertDress {
         System.Action<int,float,float,float> add=(pi,x,z,targetH)=>{ if(protos[pi].name.StartsWith("island")) targetH*=0.7f; float s=targetH/hts[protos[pi].name];
             list.Add(new TreeInstance{prototypeIndex=pi,position=new Vector3((x+532f)/1064f,0,(z+354.646f)/709.293f),heightScale=s,widthScale=s*(0.85f+0.3f*R()),rotation=R()*Mathf.PI*2,color=Color.Lerp(Color.white,new Color(.85f,.9f,.8f),R()),lightmapColor=Color.white});
             Counts[protos[pi].name]=(Counts.TryGetValue(protos[pi].name,out var c)?c:0)+1; };
-        int pickVar(){ float r=R(); return r<0.45f?2:(r<0.78f?0:1); }
+        int pickVar(){ float r=R(); return r<0.72f?2:(r<0.9f?0:1); }
         var vg=JsonUtility.FromJson<ValVertWoods.VG>(File.ReadAllText(SRC+"veg3_flat.json"));
         int nt=0,ns=0,nd=0;
         for(int i=0;i<vg.trees.Length;i+=4){ float x=vg.trees[i], z=vg.trees[i+1], h=vg.trees[i+2]; int k=(int)vg.trees[i+3];
@@ -106,6 +106,9 @@ public static class ValVertDress {
             if(x>531){ otE.Add(x); otE.Add(z); otE.Add(th); continue; }
             if(!clear(x,z,0.6f)) continue; add(pickVar()*2,x,z,th); no++; }
         L("osm street trees west "+no+" east "+otE.Count/3);
+        { int nb=0; for(float bx=352.5f;bx<361.0f;bx+=1.3f) for(float bz=117.5f;bz<166f;bz+=1.3f){ float px=bx+(R()-0.5f)*0.9f, pz=bz+(R()-0.5f)*0.9f;   // #168 bank behind the alley (user photos): dense evergreen understorey + tall green trees
+              if(pz>129.6f&&pz<135.6f&&px>340f) continue; add(R()<0.85f?7:6,px,pz,1.4f+R()*1.4f); nb++;
+              if(R()<0.09f) { add(R()<0.5f?4:5,px,pz,13f+R()*7f); nb++; } } L("bank168 veg "+nb); }
         td.SetTreeInstances(list.ToArray(),true);
         if(ValVertWoods.East){ var et=ValVertWoods.East.terrainData; et.treePrototypes=td.treePrototypes; var el=new List<TreeInstance>();
             var em=JsonUtility.FromJson<ValVertWoods.ML>(File.ReadAllText(SRC+"east_meshes.json"));
@@ -144,11 +147,11 @@ public static class ValVertDress {
     public static void SkyPost(){ RenderSettings.ambientIntensity=1.25f; RenderSettings.reflectionIntensity=0.8f;
         string hp="Assets/ValVert/Sky/kloofendal_48d_partly_cloudy_puresky_2k.hdr"; if(!File.Exists(hp)) hp=Directory.GetFiles("Assets/ValVert/Sky","*.hdr")[0];
         var ti=(TextureImporter)AssetImporter.GetAtPath(hp); ti.textureShape=TextureImporterShape.Texture2D; ti.mipmapEnabled=false; ti.wrapModeU=TextureWrapMode.Repeat; ti.SaveAndReimport();
-        var sky=new Material(Shader.Find("Skybox/Panoramic")); sky.SetTexture("_MainTex",AssetDatabase.LoadAssetAtPath<Texture2D>(hp)); sky.SetColor("_Tint",new Color(.6f,.53f,.45f)); sky.SetFloat("_Exposure",0.9f); sky.SetFloat("_Rotation",40);
+        var sky=new Material(Shader.Find("Skybox/Panoramic")); sky.SetTexture("_MainTex",AssetDatabase.LoadAssetAtPath<Texture2D>(hp)); sky.SetColor("_Tint",new Color(.62f,.63f,.64f)); sky.SetFloat("_Exposure",0.9f); sky.SetFloat("_Rotation",40);
         AssetDatabase.CreateAsset(sky,"Assets/ValVert/Mats/sky.mat"); RenderSettings.skybox=sky;
         var prof=ScriptableObject.CreateInstance<VolumeProfile>(); AssetDatabase.CreateAsset(prof,"Assets/ValVert/PostProfile.asset");
         var b=prof.Add<Bloom>(true); b.intensity.Override(0.35f); b.threshold.Override(1.0f); b.scatter.Override(0.6f);
-        var ca=prof.Add<ColorAdjustments>(true); ca.contrast.Override(10f); ca.saturation.Override(-4f); ca.colorFilter.Override(new Color(1f,.98f,.94f)); ca.postExposure.Override(0.1f);
+        var ca=prof.Add<ColorAdjustments>(true); ca.contrast.Override(10f); ca.saturation.Override(-12f); ca.colorFilter.Override(new Color(.97f,1f,1f)); ca.postExposure.Override(0.1f);
         var vg=prof.Add<Vignette>(true); vg.intensity.Override(0.22f); vg.smoothness.Override(0.45f);
         var tm=prof.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.Neutral);
         foreach(var c in prof.components) AssetDatabase.AddObjectToAsset(c,prof);
