@@ -56,10 +56,10 @@ public static class ValVertDress {
         var td=terr.terrainData;
         var tsBark=Mat("tree_small_02_trunk",Tex(T+"tree_small_02_diff_1k.jpg"),Tex(T+"tree_small_02_nor_gl_1k.jpg",true),false,Color.white);
         var tsBr=Mat("tree_small_02_branch",Tex(T+"tree_small_02_branch_diff_1k.jpg"),Tex(T+"tree_small_02_branch_nor_gl_1k.jpg",true),true,Color.white);
-        var itBark=Mat("island_tree_02_trunk",Tex(T+"island_tree_02_diff_1k.jpg"),Tex(T+"island_tree_02_nor_gl_1k.jpg",true),false,Color.white);
+        var itBark=Mat("fir_tree_01_bark",Tex(T+"fir_tree_01_bark_diff_1k.jpg"),Tex(T+"fir_tree_01_bark_nor_gl_1k.jpg",true),false,Color.white);
         var itBr=Mat("island_tree_02_branch",Tex(T+"island_tree_02_branches_diff_1k.jpg"),Tex(T+"island_tree_02_branches_nor_gl_1k.jpg",true),true,Color.white);
         var trees=new List<GameObject>();
-        foreach(var v in new[]{"autumnA","autumnB","green"}){ trees.Add(TreePrefab("tree_small_02",v,tsBark,tsBr)); trees.Add(TreePrefab("island_tree_02",v,itBark,itBr)); }
+        foreach(var v in new[]{"autumnA","autumnB","green"}){ trees.Add(TreePrefab("tree_small_02",v,tsBark,tsBr)); trees.Add(TreePrefab("fir_tree_01",v,itBark,itBark)); }
         var shA=Mat("shrub_02_autumnA",Tex(T+"shrub_02_leaves_autumnA.png"),null,true,Color.white); var shG=Mat("shrub_02_green",Tex(T+"shrub_02_leaves_green.png"),null,true,Color.white);
         var fern=Mat("fern_02",Tex(T+"fern_02_leaves_green.png"),null,true,new Color(.85f,.8f,.6f));
         var grass=Mat("grass_medium_01",Tex(T+"grass_medium_01_leaves_green.png"),null,true,new Color(.85f,.82f,.65f));
@@ -114,7 +114,7 @@ public static class ValVertDress {
         td.SetTreeInstances(list.ToArray(),true);
         if(ValVertWoods.East){ var et=ValVertWoods.East.terrainData; et.treePrototypes=td.treePrototypes; var el=new List<TreeInstance>();
             var em=JsonUtility.FromJson<ValVertWoods.ML>(File.ReadAllText(SRC+"east_meshes.json"));
-            for(int i=0;i<em.trees.Length;i+=3){ float x=em.trees[i], z=em.trees[i+1], th=Mathf.Clamp(em.trees[i+2]*0.92f,3.5f,30f); int pi=pickVar()*2+((th>15f&&R()<0.75f)?1:(R()<0.25f?1:0)); float hh=th*(protos[pi].name.StartsWith("island")?0.7f:1f); float s=hh/hts[protos[pi].name];
+            for(int i=0;i<em.trees.Length;i+=3){ float x=em.trees[i], z=em.trees[i+1], th=Mathf.Clamp(em.trees[i+2]*0.92f,3.5f,30f); int pi=pickVar()*2+((th>15f&&R()<0.4f)?1:(R()<0.25f?1:0)); float hh=th*(protos[pi].name.StartsWith("island")?0.7f:1f); float s=hh/hts[protos[pi].name];
                 el.Add(new TreeInstance{prototypeIndex=pi,position=new Vector3((x-532f)/432f,0,(z+354.646f)/709.293f),heightScale=s,widthScale=s*(0.85f+0.3f*R()),rotation=R()*Mathf.PI*2,color=Color.white,lightmapColor=Color.white}); }
             for(int i=0;i<otE.Count;i+=3){ float x=otE[i], z=otE[i+1], th=otE[i+2]; int pi=pickVar()*2; float s=th/hts[protos[pi].name];
                 el.Add(new TreeInstance{prototypeIndex=pi,position=new Vector3((x-532f)/432f,0,(z+354.646f)/709.293f),heightScale=s,widthScale=s,rotation=R()*Mathf.PI*2,color=Color.white,lightmapColor=Color.white}); }
@@ -146,19 +146,23 @@ public static class ValVertDress {
             else if(n=="Water"){ mr.sharedMaterials=Enumerable.Repeat(water,mr.sharedMaterials.Length).ToArray(); }
         }
     }
+    public static Material OvercastSky; public static List<ReflectionProbe> Probes=new List<ReflectionProbe>();
     public static void SkyPost(){ RenderSettings.ambientIntensity=1.25f; RenderSettings.reflectionIntensity=0.8f;
         string hp="Assets/ValVert/Sky/kloofendal_48d_partly_cloudy_puresky_2k.hdr"; if(!File.Exists(hp)) hp=Directory.GetFiles("Assets/ValVert/Sky","*.hdr")[0];
         var ti=(TextureImporter)AssetImporter.GetAtPath(hp); ti.textureShape=TextureImporterShape.Texture2D; ti.mipmapEnabled=false; ti.wrapModeU=TextureWrapMode.Repeat; ti.SaveAndReimport();
         var sky=new Material(Shader.Find("Skybox/Panoramic")); sky.SetTexture("_MainTex",AssetDatabase.LoadAssetAtPath<Texture2D>(hp)); sky.SetColor("_Tint",new Color(.62f,.63f,.64f)); sky.SetFloat("_Exposure",0.9f); sky.SetFloat("_Rotation",40);
         AssetDatabase.CreateAsset(sky,"Assets/ValVert/Mats/sky.mat"); RenderSettings.skybox=sky;
         var prof=ScriptableObject.CreateInstance<VolumeProfile>(); AssetDatabase.CreateAsset(prof,"Assets/ValVert/PostProfile.asset");
-        var b=prof.Add<Bloom>(true); b.intensity.Override(0.35f); b.threshold.Override(1.0f); b.scatter.Override(0.6f);
-        var ca=prof.Add<ColorAdjustments>(true); ca.contrast.Override(10f); ca.saturation.Override(-12f); ca.colorFilter.Override(new Color(.97f,1f,1f)); ca.postExposure.Override(0.1f);
+        var b=prof.Add<Bloom>(true); b.intensity.Override(0.18f); b.threshold.Override(1.1f); b.scatter.Override(0.6f);
+        var ca=prof.Add<ColorAdjustments>(true); ca.contrast.Override(10f); ca.saturation.Override(-12f); ca.colorFilter.Override(new Color(.97f,1f,1f)); ca.postExposure.Override(0.35f);
         var vg=prof.Add<Vignette>(true); vg.intensity.Override(0.22f); vg.smoothness.Override(0.45f);
-        var tm=prof.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.Neutral);
+        var tm=prof.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.ACES);
         foreach(var c in prof.components) AssetDatabase.AddObjectToAsset(c,prof);
         var go=new GameObject("PostVolume"); var vol=go.AddComponent<Volume>(); vol.isGlobal=true; vol.sharedProfile=prof;
         var urp=GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset; if(urp){ urp.shadowDistance=180; urp.supportsHDR=true; EditorUtility.SetDirty(urp);} 
+        { var ohp="Assets/ValVert/Sky/kloofendal_overcast_puresky_2k.hdr"; var oti=(TextureImporter)AssetImporter.GetAtPath(ohp); oti.textureShape=TextureImporterShape.Texture2D; oti.mipmapEnabled=false; oti.wrapModeU=TextureWrapMode.Repeat; oti.SaveAndReimport();
+          OvercastSky=new Material(Shader.Find("Skybox/Panoramic")); OvercastSky.SetTexture("_MainTex",AssetDatabase.LoadAssetAtPath<Texture2D>(ohp)); OvercastSky.SetColor("_Tint",new Color(.5f,.5f,.5f)); OvercastSky.SetFloat("_Exposure",1.0f); AssetDatabase.CreateAsset(OvercastSky,"Assets/ValVert/Mats/sky_overcast.mat"); }
+        foreach(var pp in new[]{new Vector3(0,40,0),new Vector3(368,20,130),new Vector3(340,15,215),new Vector3(380,25,100)}){ var rg=new GameObject("ReflProbe"); rg.transform.position=pp; var rp=rg.AddComponent<ReflectionProbe>(); rp.mode=UnityEngine.Rendering.ReflectionProbeMode.Realtime; rp.refreshMode=UnityEngine.Rendering.ReflectionProbeRefreshMode.ViaScripting; rp.size=pp.x==0?new Vector3(1100,300,720):new Vector3(90,60,90); rp.importance=pp.x==0?0:1; rp.resolution=256; Probes.Add(rp); }
         L("sky + post set");
     }
     public static void Post(Camera c){ var d=c.GetUniversalAdditionalCameraData(); d.renderPostProcessing=true; d.antialiasing=AntialiasingMode.SubpixelMorphologicalAntiAliasing; }

@@ -66,3 +66,9 @@ Building heights: IGN nDSM (MNS-MNT, Etalab 2.0); footprints OSM (ODbL); roof co
 
 Cars: 'Sedan car' (sedan-car-42109739) and 'White four-door sedan' (white-four-door-sedan-1f271353), Innerscene 3D Parts Library, original models released CC0 (innerscene.com). Converted GLB->FBX with Blender; paints recoloured in Unity.
 Derived textures cladding_light_diff.png / gravel_grey_diff.png made from Poly Haven CC0 corrugated_iron_02 / gravel_concrete.
+
+--- Realism pass (2 Nov 2026), all CC0 ---
+- Poly Haven "fir_tree_01" (model + bark/twig textures), CC0 - https://polyhaven.com/a/fir_tree_01 (decimated in Blender, replaces island_tree_02 in the tree mix)
+- Poly Haven HDRI "kloofendal_overcast_puresky" (2k), CC0 - https://polyhaven.com/a/kloofendal_overcast_puresky (overcast preset for the comparison shots)
+- Poly Haven "white_plaster_rough_01" normal map now also used on facades (already credited)
+- tree_small_02 / shrub_02 leaf variants retinted from Poly Haven CC0 textures (yellow-green instead of orange)
