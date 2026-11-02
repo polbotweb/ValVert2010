@@ -184,14 +184,15 @@ public static class ValVertWoods {
     public static void Cars(){
         var root=new GameObject("V3_Cars2010"); var tex=AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Cars/Textures/colormap.png");
         var mat=ValVertDress.Mat("kenney_car",tex,null,false,Color.white,0.55f);
-        string[] kinds={"sedan_white","sedan_white","sedan_is","sedan_white"};
+        string[] kinds={"hatch_clio","hatch_307","mpv_picasso","hatch_clio","hatch_307"};
         // 2010 French fleet paints: silver, grey, white, dark blue, black, dark red
         Color[] paints={new Color(.62f,.63f,.64f),new Color(.32f,.33f,.35f),new Color(.86f,.86f,.84f),new Color(.07f,.11f,.22f),new Color(.04f,.04f,.05f),new Color(.30f,.05f,.06f),new Color(.70f,.71f,.72f),new Color(.86f,.86f,.84f)};
-        var mGlass=ValVertDress.Mat("car_glass",null,null,false,new Color(.03f,.04f,.05f),0.95f);
+        var mGlass=ValVertDress.Mat("car_glass",null,null,false,new Color(.02f,.025f,.03f),0.97f); mGlass.SetFloat("_Metallic",0.35f);
         var mChrome=ValVertDress.Mat("car_chrome",null,null,false,new Color(.75f,.76f,.78f),0.85f); mChrome.SetFloat("_Metallic",0.9f);
         var mRub=ValVertDress.Mat("car_rubber",null,null,false,new Color(.03f,.03f,.03f),0.2f);
         var mBlack=ValVertDress.Mat("car_black",null,null,false,new Color(.05f,.05f,.055f),0.35f);
         var mRed=ValVertDress.Mat("car_tail",null,null,false,new Color(.5f,.02f,.02f),0.8f);
+        var mPlate=ValVertDress.Mat("car_plate",null,null,false,new Color(.92f,.92f,.9f),0.6f);
         var mLamp=ValVertDress.Mat("car_lamp",null,null,false,new Color(.85f,.87f,.9f),0.9f);
         var mSteel=ValVertDress.Mat("car_steel",null,null,false,new Color(.45f,.47f,.5f),0.6f); mSteel.SetFloat("_Metallic",0.7f);
         float[,] P={{478,52,0},{478,63,180},{474.5f,52,0},{471,63,180},{467.5f,52,0},
@@ -204,15 +205,15 @@ public static class ValVertWoods {
         int DECK0=P.GetLength(0)-3;
         var tm=Terrain.activeTerrain;
         for(int i=0;i<P.GetLength(0);i++){
-            var pf=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Cars/"+kinds[i%kinds.Length]+".fbx"); if(pf==null){Debug.Log("[VV] car missing");continue;}
+            var pf=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Cars/"+kinds[i%kinds.Length]+".obj"); if(pf==null){Debug.Log("[VV] car missing");continue;}
             var g=(GameObject)Object.Instantiate(pf,root.transform); g.name="car_"+i;
-            var paint=ValVertDress.Mat("car_paint_"+i,null,null,false,paints[(i*5+3)%paints.Length],0.82f); paint.SetFloat("_Metallic",(i%3==0)?0.55f:0.25f);
+            var paint=ValVertDress.Mat("car_paint_"+i,null,null,false,paints[(i*5+3)%paints.Length],0.9f); paint.SetFloat("_Metallic",(i%3==0)?0.6f:0.3f); paint.EnableKeyword("_SPECULARHIGHLIGHTS_OFF"); paint.DisableKeyword("_SPECULARHIGHLIGHTS_OFF");
             foreach(var r in g.GetComponentsInChildren<Renderer>()){ var ms=r.sharedMaterials; for(int k=0;k<ms.Length;k++){ string n=ms[k]?ms[k].name.ToLower():"";
                 Material m=paint; if(n.Contains("glass")||n.Contains("clearlens")) m=mGlass; else if(n.Contains("chrome")) m=mChrome; else if(n.Contains("rubber")) m=mRub;
-                else if(n.Contains("black")||n.Contains("interior")) m=mBlack; else if(n.Contains("tail")||n.Contains("redlens")) m=mRed; else if(n.Contains("lamp")) m=mLamp; else if(n.Contains("steel")) m=mSteel;
+                else if(n.Contains("black")||n.Contains("interior")) m=mBlack; else if(n.Contains("tail")||n.Contains("redlens")) m=mRed; else if(n.Contains("lamp")) m=mLamp; else if(n.Contains("steel")) m=mSteel; else if(n.Contains("plate")) m=mPlate;
                 ms[k]=m; } r.sharedMaterials=ms; }
             var b=new Bounds(g.transform.position,Vector3.zero); foreach(var r in g.GetComponentsInChildren<Renderer>()) b.Encapsulate(r.bounds);
-            float s=4.45f/Mathf.Max(0.01f,Mathf.Max(b.size.x,b.size.z)); g.transform.localScale*=s;
+            // real-size procedural cars: no rescale
             var pos=new Vector3(P[i,0],0,P[i,1]); Terrain t=(pos.x>532f&&East)?East:null;
             if(t==null){ foreach(var tt in Terrain.activeTerrains){ var tp=tt.transform.position; if(pos.x>=tp.x&&pos.x<=tp.x+tt.terrainData.size.x&&pos.z>=tp.z&&pos.z<=tp.z+tt.terrainData.size.z) t=tt; } }
             float y=(t?t.SampleHeight(pos)+t.transform.position.y:0)+0.07f; if(i>=DECK0) y=8.36f+0.03f;

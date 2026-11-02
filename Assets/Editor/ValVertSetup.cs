@@ -88,6 +88,8 @@ public static class ValVertSetup {
           RenderSettings.skybox=ValVertDress.OvercastSky; oc.clearFlags=CameraClearFlags.Skybox;
           RenderSettings.ambientMode=UnityEngine.Rendering.AmbientMode.Skybox; RenderSettings.ambientIntensity=1.3f; DynamicGI.UpdateEnvironment(); foreach(var rp in ValVertDress.Probes) if(rp) rp.RenderProbe(); RenderSettings.fogColor=new Color(.80f,.81f,.82f); RenderSettings.fogDensity=0.004f;
           shF("cmp9_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f);
+          shF("cmp10_street_cars.png",new Vector3(470.5f,0,40.0f),new Vector3(0.25f,-0.08f,1f),1.6f);
+          shF("cmp10_cars_close.png",new Vector3(483.0f,0,56.0f),new Vector3(-0.8f,-0.25f,0.3f),1.6f);
           shF("cmp9_facade.png",new Vector3(363.6f,0,141.5f),new Vector3(1f,-0.08f,0.05f),4.6f);
           shF("cmp9_window_road.png",new Vector3(373.2f,0,168.9f),new Vector3(-0.05f,-0.22f,1f),9.0f);   // #9 (OSM 62591705) north-facade upper window -> access road 1378070581
           shF("cmp9_access_road.png",new Vector3(371.0f,0,180.5f),new Vector3(-0.03f,-0.12f,-1f),1.7f);   // from the Rue du Val Vert junction down the access road toward #9-11-13

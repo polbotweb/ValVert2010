@@ -64,7 +64,7 @@ print('ACCESSRAMP',round(_y0,2),round(_y1,2))
 hv=np.clip(np.round((h-0.002)/80.056*65535),0,65535).astype('<u2'); hv.tofile('/workspace/valvert/clean/heightmap_v3.raw')
 print('stair168 regrade A',A.round(1),'B',B.round(1),'hA',round(hA,2),'hB0',round(hB0,2),'L',round(L,1),'Ls',round(Ls,1),'rise',round(rise,2))
 # ground: asphalt + leaf litter on the whole alley (wall of #168 -> bin store), leaf/dirt only on the wooded bank
-al=[(361.2,117.5),(373.4,117.5),(373.4,177.4),(366.4,177.4),(366.4,134.2),(361.2,134.2)]
+al=[(361.2,117.5),(373.4,117.5),(373.4,174.6),(366.4,174.6),(366.4,134.2),(361.2,134.2)]
 drape(al,'asphalt_leaves',0.06,lambda x,z:(x/4.0,z/4.0),0.8); HIDE.extend([v for q in al for v in q]); HIDEL.append(len(al))
 bk=[(352.0,117.5),(361.2,117.5),(361.2,166.0),(352.0,166.0)]
 drape(bk,'leafground',0.05,lambda x,z:(x/3.0,z/3.0),0.8)

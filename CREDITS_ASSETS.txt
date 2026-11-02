@@ -72,3 +72,5 @@ Derived textures cladding_light_diff.png / gravel_grey_diff.png made from Poly H
 - Poly Haven HDRI "kloofendal_overcast_puresky" (2k), CC0 - https://polyhaven.com/a/kloofendal_overcast_puresky (overcast preset for the comparison shots)
 - Poly Haven "white_plaster_rough_01" normal map now also used on facades (already credited)
 - tree_small_02 / shrub_02 leaf variants retinted from Poly Haven CC0 textures (yellow-green instead of orange)
+- hatch_clio / hatch_307 / mpv_picasso (procedural car models, self-made by this project, /workspace/cars/gen_car.py) - used for: parked 2000s European cars (replace Kenney car kit)
+  License: CC0 1.0 (own work)

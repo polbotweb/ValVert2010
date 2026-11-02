@@ -1,0 +1,24 @@
+newmtl paint
+Kd 0.5 0.5 0.5
+
+newmtl glass
+Kd 0.5 0.5 0.5
+
+newmtl rubber
+Kd 0.5 0.5 0.5
+
+newmtl steel
+Kd 0.5 0.5 0.5
+
+newmtl black
+Kd 0.5 0.5 0.5
+
+newmtl lamp
+Kd 0.5 0.5 0.5
+
+newmtl tail
+Kd 0.5 0.5 0.5
+
+newmtl plate
+Kd 0.5 0.5 0.5
+
