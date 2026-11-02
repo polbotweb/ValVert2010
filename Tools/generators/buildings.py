@@ -89,9 +89,11 @@ def wall_bays(p,g,ytop,kind,tone,rnd,shutters=True):
                 if kind=='house' and row==0 and rnd.random()<0.4: row=15
                 if s==0 and ((kind=='apt' and row==6) or (kind=='house' and row==1)): ENT.append((q0,q1,d,out,y0,bw))
                 b_quad('facade',(q0[0],y0,q0[1]),(q1[0],y0,q1[1]),(q1[0],y1,q1[1]),(q0[0],y1,q0[1]),cell(tone,row,0.03,0.09,0.93,0.98) if kind=='bakery' else cell(tone,row,0,1,0.0,1.0),out)
-                if G168[0] and kind=='apt' and j%2==1 and row!=6 and bw>=2.0:   # #168: dark grey horizontal bands between the window bays (user photos)
-                    o_=np.array([out[0],out[2]])*0.035; a_=q0+o_; b_=q1+o_
-                    b_quad('band_grey',(a_[0],y0+0.75,a_[1]),(b_[0],y0+0.75,b_[1]),(b_[0],y0+2.35,b_[1]),(a_[0],y0+2.35,a_[1]),[(0,0),(1,0),(1,1),(0,1)],out)
+                if G168[0] and kind=='apt' and row not in(6,2) and bw>=2.0:   # #168: continuous dark grey band framing each window row (user photo)
+                    o_=np.array([out[0],out[2]])*0.035
+                    for (u0_,u1_,v0_,v1_) in((0,1,0.27,0.33),(0,1,0.78,0.84),(0,0.17,0.27,0.84),(0.83,1,0.27,0.84)):
+                        a_=q0+(q1-q0)*u0_+o_; b_=q0+(q1-q0)*u1_+o_; ya=y0+sh_*v0_; yb_=y0+sh_*v1_
+                        b_quad('band_grey',(a_[0],ya,a_[1]),(b_[0],ya,b_[1]),(b_[0],yb_,b_[1]),(a_[0],yb_,a_[1]),[(0,0),(1,0),(1,1),(0,1)],out)
                 if kind=='apt' and row==4 and s>=1:
                     cm=(q0+q1)/2+np.array([out[0],out[2]])*0.65; yaw=math.atan2(d[1],d[0])
                     b_box('white_trim',(cm[0],y0-0.05,cm[1]),(bw*0.92,0.18,1.3),yaw)

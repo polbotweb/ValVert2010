@@ -49,12 +49,20 @@ for z0,z1 in((119.0,126.0),(131.0,137.0),(142.0,153.5)):
     fence([(373.3,z0),(369.6,z0),(369.6,z1),(373.3,z1)],h=0.55,step=2.2,rails=(0.4,))
     for k in range(int((z1-z0)/1.6)):
         q=(371.4+(k%2-0.5)*1.2,z0+0.8+k*1.6); b_box('hedge',(q[0],Hc(*q)-0.05,q[1]),(1.1,0.75,1.1),k*0.7)
-A=np.array([361.0,148.3]); B=np.array([351.3,144.5]); hA=Hc(*A); hB=Hc(*B); L=np.linalg.norm(B-A); d=(B-A)/L; sd=np.array([-d[1],d[0]])
+A=np.array([361.0,148.3]); _pw=[np.array(W2(n_)) for n_ in WY[260433017]['nodes'] if n_ in ND]; _pp=[]
+for a_,b_ in zip(_pw[:-1],_pw[1:]):
+    for t_ in np.linspace(0,1,12): _pp.append(a_+(b_-a_)*t_)
+_c=[((Hc(*q)-Hc(*A))/np.linalg.norm(q-A),q) for q in _pp if 6<np.linalg.norm(q-A)<20]
+B=max(_c,key=lambda z:z[0])[1] if _c else np.array([351.3,144.5]); print('stair top candidates best slope',round(max(z[0] for z in _c),2) if _c else None)
+hA=Hc(*A); hB=Hc(*B); L=np.linalg.norm(B-A); d=(B-A)/L; sd=np.array([-d[1],d[0]])
 print('log stair', round(hA,2), round(hB,2), round(L,1))
-ns=max(4,int(abs(hB-hA)/0.17)); 
+ns=max(8,int(math.ceil(abs(hB-hA)/0.16))); 
 for k in range(ns):
     q=A+d*L*(k+0.5)/ns; y=Hc(*q)
-    seg('pole_wood',(q[0]-sd[0]*0.65,y+0.07,q[1]-sd[1]*0.65),(q[0]+sd[0]*0.65,y+0.07,q[1]+sd[1]*0.65),0.075); nenv['steps']+=1
+    y=hA+(hB-hA)*(k+0.5)/ns; y=max(y,Hc(*q)-0.05)
+    seg('pole_wood',(q[0]-sd[0]*0.65,y+0.08,q[1]-sd[1]*0.65),(q[0]+sd[0]*0.65,y+0.08,q[1]+sd[1]*0.65),0.08); nenv['steps']+=1
+    sq=[tuple(q-sd*0.62-d*L/ns*0.5),tuple(q+sd*0.62-d*L/ns*0.5),tuple(q+sd*0.62+d*L/ns*0.5),tuple(q-sd*0.62+d*L/ns*0.5)]
+    b_quad('leafground',(sq[0][0],y+0.01,sq[0][1]),(sq[1][0],y+0.01,sq[1][1]),(sq[2][0],y+0.01,sq[2][1]),(sq[3][0],y+0.01,sq[3][1]),[(0,0),(.5,0),(.5,.5),(0,.5)],np.array([0,1.,0]))
 st=[A+d*t for t in np.linspace(0,L,8)]
 drape([tuple(A-sd*0.75),tuple(A+sd*0.75),tuple(B+sd*0.75),tuple(B-sd*0.75)],'leafground',0.09,lambda x,z:(x/2.0,z/2.0),0.5)
 fence([A-sd*0.85,B-sd*0.85]); fence([A+sd*0.85,B+sd*0.85]); fence([(366.2,134.0),(366.2,118.5)])
