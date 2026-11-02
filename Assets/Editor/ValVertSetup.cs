@@ -80,7 +80,7 @@ public static class ValVertSetup {
           RenderSettings.skybox=null; oc.clearFlags=CameraClearFlags.SolidColor; oc.backgroundColor=new Color(.80f,.81f,.82f);
           RenderSettings.ambientMode=UnityEngine.Rendering.AmbientMode.Flat; RenderSettings.ambientLight=new Color(.78f,.79f,.80f); RenderSettings.fogColor=new Color(.80f,.81f,.82f); RenderSettings.fogDensity=0.004f;
           shF("cmp9_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f);
-          shF("cmp9_facade.png",new Vector3(356.8f,0,141.5f),new Vector3(1f,-0.12f,0.06f),4.2f);
+          shF("cmp9_facade.png",new Vector3(363.6f,0,141.5f),new Vector3(1f,-0.08f,0.05f),4.6f);
           shF("cmp9_orme.png",new Vector3(338.3f,0,218.8f),new Vector3(0.12f,0.0f,-1f),1.6f);
           shF("cmp9_alley_above.png",new Vector3(372.3f,0,127.3f),new Vector3(-0.12f,-0.6f,1f),10f);
           shF("cmp9_stepped.png",new Vector3(378f,0,115.3f),new Vector3(0.1f,-0.42f,-1f),17f);

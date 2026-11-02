@@ -86,19 +86,27 @@ def wall_bays(p,g,ytop,kind,tone,rnd,shutters=True):
                     else: row=rnd.choice([2,11,11,10,9])
                 if MZ[0] and kind=='apt' and bw>=2.0: row=(2 if (s==0 and i==longest and j==mid) else rnd.choice([4,4,5,6])); ENT.append((q0,q1,d,out,y0,bw)) if row==2 else None
                 if NO5[0] and kind=='apt' and row not in(6,):   # no 5 (photo): plain white walls, recessed vertical window strips, small balconies only on the right part
-                    row=(4 if (j>=nb-2 and L>9 and s>=1) else 3) if j%3==1 else 2
+                    row=2
                 elif kind=='apt' and row==3 and not OFFICE[0]: row=rnd.choice([3,3,12,13,14])      # roller shutters at varied heights
                 if kind=='house' and row==0 and rnd.random()<0.4: row=15
                 if s==0 and ((kind=='apt' and row==6) or (kind=='house' and row==1)): ENT.append((q0,q1,d,out,y0,bw))
                 b_quad('facade',(q0[0],y0,q0[1]),(q1[0],y0,q1[1]),(q1[0],y1,q1[1]),(q0[0],y1,q0[1]),cell(tone,row,0.03,0.09,0.93,0.98) if kind=='bakery' else cell(tone,row,0,1,0.0,1.0),out)
-                if G168[0] and kind=='apt' and row not in(6,2) and bw>=2.0:   # #168 (user photos): white render, window w/ white roller shutter + flat dark-grey spandrel panel per bay
-                    o_=np.array([out[0],out[2]])*0.03; row=-1
-                    def qq(m,u0_,u1_,v0_,v1_,oo=o_):
-                        a_=q0+(q1-q0)*u0_+oo; b_=q0+(q1-q0)*u1_+oo; ya=y0+sh_*v0_; yb_=y0+sh_*v1_
-                        b_quad(m,(a_[0],ya,a_[1]),(b_[0],ya,b_[1]),(b_[0],yb_,b_[1]),(a_[0],yb_,a_[1]),[(0,0),(1,0),(1,1),(0,1)],out)
+                o_=np.array([out[0],out[2]])*0.03
+                def qq(m,u0_,u1_,v0_,v1_,oo=o_):
+                    a_=q0+(q1-q0)*u0_+oo; b_=q0+(q1-q0)*u1_+oo; ya=y0+sh_*v0_; yb_=y0+sh_*v1_
+                    b_quad(m,(a_[0],ya,a_[1]),(b_[0],ya,b_[1]),(b_[0],yb_,b_[1]),(a_[0],yb_,a_[1]),[(0,0),(1,0),(1,1),(0,1)],out)
+                if G168[0] and kind=='apt' and row not in(6,2) and bw>=2.0:   # #168 photos: white render, roller shutters 30-100% down, mid-grey reflective glass, mid-grey spandrel panel
+                    row=-1; f=rnd.choice([0.3,0.5,0.7,0.85,1.0,1.0])
                     qq('render_white',0,1,0,1,o_*0.5)
-                    qq('glass',0.07,0.50,0.30,0.70); qq('white_trim',0.07,0.50,0.70,0.84)
+                    vs=0.84-0.54*f; qq('glass_refl',0.07,0.50,0.30,vs) if vs>0.31 else None; qq('white_trim',0.07,0.50,vs,0.84)
                     qq('band_grey',0.55,0.95,0.30,0.84)
+                if NO5[0] and kind=='apt':   # no 5 photo: plain white walls, few recessed vertical window strips
+                    qq('render_white',0,1,0,1,o_*0.5)
+                    if j%3==1 and bw>=2.0: qq('glass_refl',0.38,0.62,0.0,1.0,-o_*3)
+                if MZ[0] and kind=='apt' and bw>=2.0:   # rue de l'Orme: beige/grey render; green only on stairwell glazing
+                    if row in(5,6) or (s==0 and i==longest and j==mid): qq('glass_green',0.15,0.85,0.05,0.95)
+                    else:
+                        qq('render_beige',0,1,0,1,o_*0.5); qq('glass_refl',0.25,0.75,0.30,0.75)
                 if kind=='apt' and row==4 and s>=1:
                     cm=(q0+q1)/2+np.array([out[0],out[2]])*0.65; yaw=math.atan2(d[1],d[0])
                     b_box('white_trim',(cm[0],y0-0.05,cm[1]),(bw*0.92,0.18,1.3),yaw)
@@ -263,6 +271,10 @@ for e in _osm:
         wall_bays(p,g,yt,'apt',tone,rnd); YT[e['id']]=yt
         if not OFFICE[0]: porches('apt',c0)
         flat_roof(p,yt,rnd.choice(['roof_gravel','roof_gravel2','roof_gravel3']),0.8,tone)
+        if NO5[0]:   # mono-pitch roof (photo)
+            U2_=np.array(u); V2_=np.array(v); k_=[c+U2_*sa*(ha+0.4)+V2_*sb*(hb+0.4) for sa,sb in((-1,-1),(1,-1),(1,1),(-1,1))]; hh_=[yt+0.9,yt+0.9,yt+2.2,yt+2.2]
+            b_quad('metal',*[(k_[m][0],hh_[m],k_[m][1]) for m in range(4)],[(0,0),(1,0),(1,1),(0,1)],UP)
+            b_quad('metal',*[(k_[m][0],hh_[m],k_[m][1]) for m in (3,2,1,0)],[(0,0),(1,0),(1,1),(0,1)],DN)
         yaw=math.atan2(u[1],u[0]); U2=np.array(u); V2=np.array(v); _pp=_Path(p); IN=lambda q,r=1.8:_pp.contains_point(tuple(q),radius=-r) and _pp.contains_point(tuple(q),radius=r)
         nst=max(1,int(ha*2//22))
         for k in range(nst):   # lift / stair housing per stairwell

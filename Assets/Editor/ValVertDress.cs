@@ -106,9 +106,11 @@ public static class ValVertDress {
             if(x>531){ otE.Add(x); otE.Add(z); otE.Add(th); continue; }
             if(!clear(x,z,0.6f)) continue; add(pickVar()*2,x,z,th); no++; }
         L("osm street trees west "+no+" east "+otE.Count/3);
-        { int nb=0; for(float bx=352.5f;bx<361.0f;bx+=1.3f) for(float bz=117.5f;bz<166f;bz+=1.3f){ float px=bx+(R()-0.5f)*0.9f, pz=bz+(R()-0.5f)*0.9f;   // #168 bank behind the alley (user photos): dense evergreen understorey + tall green trees
-              if(pz>129.6f&&pz<135.6f&&px>340f) continue; add(7,px,pz,2.4f+R()*1.8f); nb++;
-              if(R()<0.14f) { add(R()<0.5f?4:5,px,pz,16f+R()*8f); nb++; } } L("bank168 veg "+nb); }
+        { int nb=0; for(float bx=352.5f;bx<361.0f;bx+=0.95f) for(float bz=117.5f;bz<166f;bz+=0.95f){ float px=bx+(R()-0.5f)*0.9f, pz=bz+(R()-0.5f)*0.9f;   // #168 bank behind the alley (user photos): dense evergreen understorey + tall green trees
+              if(pz>129.6f&&pz<135.6f&&px>340f) continue; if(px>355.5f&&Mathf.Abs(pz-141.5f)<1.8f) continue; add(7,px,pz,1.6f+R()*0.9f); nb++;
+              if(R()<0.09f) { int v_=R()<0.3f?0:2; add(v_*2+(R()<0.5f?0:1),px+1.2f,pz,15f+R()*8f); nb++; } }
+            for(float lx=359.5f;lx<361.3f;lx+=0.8f) for(float lz=122.5f;lz<129.4f;lz+=0.9f){ add(7,lx+(R()-0.5f)*0.5f,lz+(R()-0.5f)*0.5f,1.8f+R()*0.6f); nb++; }   // eye-level laurel/rhododendron mass left of the stair (photo)
+            L("bank168 veg "+nb); }
         td.SetTreeInstances(list.ToArray(),true);
         if(ValVertWoods.East){ var et=ValVertWoods.East.terrainData; et.treePrototypes=td.treePrototypes; var el=new List<TreeInstance>();
             var em=JsonUtility.FromJson<ValVertWoods.ML>(File.ReadAllText(SRC+"east_meshes.json"));
