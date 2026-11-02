@@ -90,6 +90,9 @@ public static class ValVertSetup {
           shF("cmp9_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f);
           shF("cmp9_facade.png",new Vector3(363.6f,0,141.5f),new Vector3(1f,-0.08f,0.05f),4.6f);
           shF("cmp9_window_road.png",new Vector3(373.2f,0,168.9f),new Vector3(-0.05f,-0.22f,1f),9.0f);   // #9 (OSM 62591705) north-facade upper window -> access road 1378070581
+          shF("cmp9_access_road.png",new Vector3(371.0f,0,180.5f),new Vector3(-0.03f,-0.12f,-1f),1.7f);   // from the Rue du Val Vert junction down the access road toward #9-11-13
+          shF("cmp9_alley_below.png",new Vector3(369.9f,0,128.0f),new Vector3(0f,0.04f,1f),1.6f);   // alley from below, looking up to the rue
+          shF("cmp9_stairs_top.png",new Vector3(349.0f,0,134.6f),new Vector3(0.35f,-0.12f,1f),1.7f);   // top of the log stair: woods path (OSM 260433017) both ways
           shF("cmp9_orme.png",new Vector3(338.3f,0,218.8f),new Vector3(0.12f,0.0f,-1f),1.6f);
           shF("cmp9_alley_above.png",new Vector3(372.3f,0,127.3f),new Vector3(-0.12f,-0.6f,1f),10f);
           shF("cmp9_stepped.png",new Vector3(378f,0,115.3f),new Vector3(0.1f,-0.42f,-1f),17f);

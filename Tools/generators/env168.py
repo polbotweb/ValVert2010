@@ -55,10 +55,16 @@ XX,ZZ=np.meshgrid(GX[_ix],GZ[_iz]); dx=XX-A[0]; dz=ZZ-A[1]; tt=dx*d[0]+dz*d[1]; 
 tgt=hA+np.clip(tt,0,None)*SLOPE; tgt=np.minimum(tgt,hB)
 wgt=np.clip(1-(ss-2.0)/9.0,0,1)*np.clip((tt+0.3)/0.6,0,1)*np.clip(1-(tt-L)/6.0,0,1)*(XX<A[0]+0.2)
 sub=h[np.ix_(_iz,_ix)]; h[np.ix_(_iz,_ix)]=sub*(1-wgt)+tgt*wgt
+# access road (user 21:27 + schema_C route 1 + photo 01M6E4PQFA): asphalt between #9-11-13 and the bin store climbs from the alley (IGN 12.2-12.4) to Rue du Val Vert (14.3) -> one smooth ramp z 155->177, bank blended on the west
+_ix=np.where((GX>358)&(GX<379))[0]; _iz=np.where((GZ>150)&(GZ<182))[0]; XX,ZZ=np.meshgrid(GX[_ix],GZ[_iz])
+_y0=float(Hc(369.9,153.0)); _y1=float(Hc(371.4,179.5)); _t=np.clip((ZZ-155.0)/22.0,0,1); _t=_t*_t*(3-2*_t); _tg=_y0+(_y1-_y0)*_t
+_wx=np.clip(1-np.maximum(np.maximum(365.6-XX,XX-374.2),0)/3.5,0,1); _wz=np.clip(1-np.maximum(152.0-ZZ,0)/2.0,0,1)*np.clip(1-np.maximum(ZZ-176.3,0)/1.4,0,1)
+_w=_wx*_wz; _sb=h[np.ix_(_iz,_ix)]; h[np.ix_(_iz,_ix)]=_sb*(1-_w)+_tg*_w
+print('ACCESSRAMP',round(_y0,2),round(_y1,2))
 hv=np.clip(np.round((h-0.002)/80.056*65535),0,65535).astype('<u2'); hv.tofile('/workspace/valvert/clean/heightmap_v3.raw')
 print('stair168 regrade A',A.round(1),'B',B.round(1),'hA',round(hA,2),'hB0',round(hB0,2),'L',round(L,1),'Ls',round(Ls,1),'rise',round(rise,2))
 # ground: asphalt + leaf litter on the whole alley (wall of #168 -> bin store), leaf/dirt only on the wooded bank
-al=[(361.2,117.5),(373.4,117.5),(373.4,166.0),(366.4,166.0),(366.4,134.2),(361.2,134.2)]
+al=[(361.2,117.5),(373.4,117.5),(373.4,177.4),(366.4,177.4),(366.4,134.2),(361.2,134.2)]
 drape(al,'asphalt_leaves',0.06,lambda x,z:(x/4.0,z/4.0),0.8); HIDE.extend([v for q in al for v in q]); HIDEL.append(len(al))
 bk=[(352.0,117.5),(361.2,117.5),(361.2,166.0),(352.0,166.0)]
 drape(bk,'leafground',0.05,lambda x,z:(x/3.0,z/3.0),0.8)
@@ -170,3 +176,4 @@ if _w:
 print('PROF',[round(float(Hc(371.4,z)),2) for z in np.arange(178,207,1.5)])
 print('PROFX',[round(float(Hc(x,178.1)),2) for x in np.arange(355,390,2.5)])
 print('SC',[round(float(Hc(*p)),2) for p in [(371.4,170),(371.4,160),(350,200),(395,200),(371.4,215)]])
+print('ALLEYPROF2',[(z,round(float(Hc(369.9,z)),2),round(float(Hc(364,z)),2)) for z in range(118,186,3)])
