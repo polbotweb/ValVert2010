@@ -34,6 +34,14 @@ public static class ValVertSetup {
         // hide area layers
         foreach(var t in root.GetComponentsInChildren<Transform>(true)) if(t!=root.transform && Hidden(t.name)) { t.gameObject.SetActive(false); L("hidden "+t.name);}
         foreach(var t in root.GetComponentsInChildren<Transform>(true)) if(t.name=="Water"){ t.gameObject.SetActive(false); L("hidden old Water (replaced by v3 stream ribbon)"); }
+        { // IGN DEM offset fix (gen_woods demfix_delta.raw): lower the old FBX surface meshes with the terrain so nothing floats
+          var dpath=SRC+"demfix_delta.raw"; if(File.Exists(dpath)){ var db=File.ReadAllBytes(dpath); int DR=2049; float dsx=1064f/2048f, dsz=709.293f/2048f; int nmv=0;
+            System.Func<float,float,float> DL=(x,z)=>{ float fx=(x+532f)/dsx, fz=(z+354.646f)/dsz; if(fx<0||fz<0||fx>=DR-1||fz>=DR-1) return 0f; int i=(int)fx,j=(int)fz; float a=fx-i,b=fz-j;
+              System.Func<int,int,float> G=(ii,jj)=>System.BitConverter.ToSingle(db,(jj*DR+ii)*4); return G(i,j)*(1-a)*(1-b)+G(i+1,j)*a*(1-b)+G(i,j+1)*(1-a)*b+G(i+1,j+1)*a*b; };
+            foreach(var mf in root.GetComponentsInChildren<MeshFilter>(true)){ if(mf.name=="Terrain"||!mf.sharedMesh) continue; var msh=Object.Instantiate(mf.sharedMesh); var vv=msh.vertices; var m2w=mf.transform.localToWorldMatrix; var w2m=mf.transform.worldToLocalMatrix; bool ch=false;
+              for(int k=0;k<vv.Length;k++){ var w=m2w.MultiplyPoint3x4(vv[k]); float dd=DL(w.x,w.z); if(dd>0.01f){ w.y-=dd; vv[k]=w2m.MultiplyPoint3x4(w); ch=true; nmv++; } }
+              if(ch){ msh.vertices=vv; msh.RecalculateBounds(); AssetDatabase.CreateAsset(msh,"Assets/ValVert/demfix_"+mf.name+"_"+mf.GetInstanceID()+".asset"); mf.sharedMesh=msh; var mc=mf.GetComponent<MeshCollider>(); if(mc) mc.sharedMesh=msh; } }
+            L("DEMFIX lowered FBX vertices: "+nmv); } }
         foreach(var nm in new[]{"Buildings","Paths","Roads","Courts"}){
             var mf=root.GetComponentsInChildren<MeshFilter>(true).FirstOrDefault(m=>m.name==nm); if(!mf) continue;
             var vv=mf.sharedMesh.vertices; var mm=mf.transform.localToWorldMatrix; var d=new List<float>();
@@ -81,6 +89,7 @@ public static class ValVertSetup {
           RenderSettings.ambientMode=UnityEngine.Rendering.AmbientMode.Skybox; RenderSettings.ambientIntensity=1.3f; DynamicGI.UpdateEnvironment(); foreach(var rp in ValVertDress.Probes) if(rp) rp.RenderProbe(); RenderSettings.fogColor=new Color(.80f,.81f,.82f); RenderSettings.fogDensity=0.004f;
           shF("cmp9_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f);
           shF("cmp9_facade.png",new Vector3(363.6f,0,141.5f),new Vector3(1f,-0.08f,0.05f),4.6f);
+          shF("cmp9_window_road.png",new Vector3(373.2f,0,168.9f),new Vector3(-0.05f,-0.22f,1f),9.0f);   // #9 (OSM 62591705) north-facade upper window -> access road 1378070581
           shF("cmp9_orme.png",new Vector3(338.3f,0,218.8f),new Vector3(0.12f,0.0f,-1f),1.6f);
           shF("cmp9_alley_above.png",new Vector3(372.3f,0,127.3f),new Vector3(-0.12f,-0.6f,1f),10f);
           shF("cmp9_stepped.png",new Vector3(378f,0,115.3f),new Vector3(0.1f,-0.42f,-1f),17f);

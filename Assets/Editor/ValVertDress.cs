@@ -63,7 +63,7 @@ public static class ValVertDress {
         var shA=Mat("shrub_02_autumnA",Tex(T+"shrub_02_leaves_autumnA.png"),null,true,Color.white); var shG=Mat("shrub_02_green",Tex(T+"shrub_02_leaves_green.png"),null,true,Color.white);
         var fern=Mat("fern_02",Tex(T+"fern_02_leaves_green.png"),null,true,new Color(.85f,.8f,.6f));
         var grass=Mat("grass_medium_01",Tex(T+"grass_medium_01_leaves_green.png"),null,true,new Color(.85f,.82f,.65f));
-        var small=new List<GameObject>{ Simple("shrub_02__a",shA,"shrub_a_autumn"), Simple("shrub_02__c",shG,"shrub_c_green"), Simple("fern_02__b",fern,"fern_b"), Simple("fern_02__c",fern,"fern_c") };
+        var small=new List<GameObject>{ Simple("shrub_02__a",shA,"shrub_a_autumn"), Simple("shrub_02__c",shG,"shrub_c_green"), Simple("fern_02__b",fern,"fern_b"), Simple("fern_02__c",fern,"fern_c"), Simple("laurel_cc0",Mat("laurel_leaves",Tex(T+"laurel_leaves.png"),null,true,Color.white,0.5f),"laurel_cc0") };
         var protos=trees.Concat(small).ToList();
         td.treePrototypes=protos.Select(p=>new TreePrototype{prefab=p}).ToArray();
         var fm=Mask("canopy_orig.png"); var ex=Mask("veg_excl.png"); var me=Mask("veg_meadow.png");
@@ -82,13 +82,13 @@ public static class ValVertDress {
             if(x>531) continue; bool ok=clear(x,z,0.7f)&&!spawnZone(x,z);
             if(!ok){ for(int t=0;t<16&&!ok;t++){ float a=t*0.785f, r=t<8?1.6f:3.0f; float nx=x+Mathf.Cos(a)*r, nz=z+Mathf.Sin(a)*r; if(clear(nx,nz,0.7f)&&!spawnZone(nx,nz)){x=nx;z=nz;ok=true;} } }
             if(!ok){ nd++; continue; }
-            float th=Mathf.Clamp(h*0.92f,3.5f,30f); int sp=(th>15f && R()<0.75f)?1:(R()<0.25f?1:0);
+            float th=Mathf.Clamp(h*0.92f,3.5f,30f); int sp=(th>15f && R()<0.25f)?1:(R()<0.08f?1:0);
             add(pickVar()*2+sp,x,z,th); nt++; }
         // canopy fill: closed deciduous wood inside the LiDAR/ortho canopy mask
         int nf=0; float cf=3.1f;
         for(float x=-530;x<530;x+=cf)for(float z=-352;z<352;z+=cf){
             float px=x+R()*cf, pz=z+R()*cf; if(S(fm,px,pz)<0.5f||spawnZone(px,pz)||!clear(px,pz,1.0f)) continue;
-            float th=8f+R()*14f; add(pickVar()*2+(R()<0.6f?1:0),px,pz,th); nf++; }
+            float th=8f+R()*14f; add(pickVar()*2+(R()<0.15f?1:0),px,pz,th); nf++; }
         L("canopy fill "+nf);
         // LiDAR low vegetation (0.8-2.5 m) -> shrubs
         for(int i=0;i<vg.shrubs.Length;i+=2){ float x=vg.shrubs[i], z=vg.shrubs[i+1]; if(x>531||!clear(x,z,0.4f)||spawnZone(x,z)) continue; add(R()<0.6f?6:7,x,z,1.0f+R()*1.3f); ns++; }
@@ -107,14 +107,14 @@ public static class ValVertDress {
             if(!clear(x,z,0.6f)) continue; add(pickVar()*2,x,z,th); no++; }
         L("osm street trees west "+no+" east "+otE.Count/3);
         { int nb=0; for(float bx=352.5f;bx<361.0f;bx+=0.95f) for(float bz=117.5f;bz<166f;bz+=0.95f){ float px=bx+(R()-0.5f)*0.9f, pz=bz+(R()-0.5f)*0.9f;   // #168 bank behind the alley (user photos): dense evergreen understorey + tall green trees
-              if(pz>129.6f&&pz<135.6f&&px>340f) continue; if(px>355.5f&&Mathf.Abs(pz-141.5f)<1.8f) continue; add(7,px,pz,1.6f+R()*0.9f); nb++;
-              if(R()<0.09f) { int v_=R()<0.3f?0:2; add(v_*2+(R()<0.5f?0:1),px+1.2f,pz,15f+R()*8f); nb++; } }
-            for(float lx=359.5f;lx<361.3f;lx+=0.8f) for(float lz=122.5f;lz<129.4f;lz+=0.9f){ add(7,lx+(R()-0.5f)*0.5f,lz+(R()-0.5f)*0.5f,1.8f+R()*0.6f); nb++; }   // eye-level laurel/rhododendron mass left of the stair (photo)
+              if(pz>129.6f&&pz<135.6f&&px>340f) continue; if(px>355.5f&&Mathf.Abs(pz-141.5f)<1.8f) continue; add(10,px,pz,2.2f+R()*1.6f); nb++;
+              if(R()<0.12f) { int v_=R()<0.5f?0:2; add(v_*2,px+(px>357f?3.2f:1.2f),pz,10f+R()*6f); nb++; } }
+            for(float lx=359.5f;lx<361.3f;lx+=0.8f) for(float lz=122.5f;lz<129.4f;lz+=0.9f){ add(10,lx+(R()-0.5f)*0.5f,lz+(R()-0.5f)*0.5f,2.4f+R()*0.9f); nb++; }   // eye-level laurel/rhododendron mass left of the stair (photo)
             L("bank168 veg "+nb); }
         td.SetTreeInstances(list.ToArray(),true);
         if(ValVertWoods.East){ var et=ValVertWoods.East.terrainData; et.treePrototypes=td.treePrototypes; var el=new List<TreeInstance>();
             var em=JsonUtility.FromJson<ValVertWoods.ML>(File.ReadAllText(SRC+"east_meshes.json"));
-            for(int i=0;i<em.trees.Length;i+=3){ float x=em.trees[i], z=em.trees[i+1], th=Mathf.Clamp(em.trees[i+2]*0.92f,3.5f,30f); int pi=pickVar()*2+((th>15f&&R()<0.4f)?1:(R()<0.25f?1:0)); float hh=th*(protos[pi].name.StartsWith("island")?0.7f:1f); float s=hh/hts[protos[pi].name];
+            for(int i=0;i<em.trees.Length;i+=3){ float x=em.trees[i], z=em.trees[i+1], th=Mathf.Clamp(em.trees[i+2]*0.92f,3.5f,30f); int pi=pickVar()*2+((th>15f&&R()<0.2f)?1:(R()<0.08f?1:0)); float hh=th*(protos[pi].name.StartsWith("island")?0.7f:1f); float s=hh/hts[protos[pi].name];
                 el.Add(new TreeInstance{prototypeIndex=pi,position=new Vector3((x-532f)/432f,0,(z+354.646f)/709.293f),heightScale=s,widthScale=s*(0.85f+0.3f*R()),rotation=R()*Mathf.PI*2,color=Color.white,lightmapColor=Color.white}); }
             for(int i=0;i<otE.Count;i+=3){ float x=otE[i], z=otE[i+1], th=otE[i+2]; int pi=pickVar()*2; float s=th/hts[protos[pi].name];
                 el.Add(new TreeInstance{prototypeIndex=pi,position=new Vector3((x-532f)/432f,0,(z+354.646f)/709.293f),heightScale=s,widthScale=s,rotation=R()*Mathf.PI*2,color=Color.white,lightmapColor=Color.white}); }

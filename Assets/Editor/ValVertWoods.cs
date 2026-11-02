@@ -101,7 +101,7 @@ public static class ValVertWoods {
             {"clad_white",M("clad_white",ValVertDress.Tex(GEN+"cladding_light_diff.png"),ValVertDress.Tex(GEN+"corrugated_iron_02_nor_gl_1k.jpg",true),new Color(1f,1f,1f),0.35f,0.3f)},
             {"clad_grey",M("clad_grey",ValVertDress.Tex(GEN+"cladding_light_diff.png"),ValVertDress.Tex(GEN+"corrugated_iron_02_nor_gl_1k.jpg",true),new Color(.62f,.64f,.66f),0.35f,0.3f)},
             {"clad_beige",M("clad_beige",ValVertDress.Tex(GEN+"cladding_light_diff.png"),ValVertDress.Tex(GEN+"corrugated_iron_02_nor_gl_1k.jpg",true),new Color(.92f,.86f,.74f),0.35f,0.3f)},
-            {"band_grey",M("band_grey",ValVertDress.Tex(GEN+"grey_plaster_diff_1k.jpg"),null,new Color(.56f,.57f,.58f),0.15f)},
+            {"band_grey",M("band_grey",null,null,new Color(.66f,.67f,.68f),0.35f).Also()},
             {"glass_refl",M("glass_refl",null,null,new Color(.30f,.33f,.36f),0.94f,0.1f)},
             {"render_beige",M("render_beige",ValVertDress.Tex(G+"white_plaster_rough_01_bright.jpg"),ValVertDress.Tex(G+"white_plaster_rough_01_nor.jpg",true),new Color(.84f,.80f,.72f),0.1f)},
             {"glass_door",M("glass_door",null,null,new Color(.16f,.20f,.23f),0.9f,0.2f)},

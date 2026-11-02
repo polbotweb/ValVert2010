@@ -163,3 +163,10 @@ for e in WY.values():
 for z_ in sorted(_sv)[:5]: print('NEAR',z_)
 # --- leaf litter on the path toward the Maison rue de l'Orme (photo 01M6E4PR55)
 lp=[(335.0,213.5),(342.0,213.5),(342.0,226.0),(335.0,226.0)]; drape(lp,'leafground',0.05,lambda x,z:(x/3.0,z/3.0),0.7)
+_w=[e for e in WY.values() if e['id']==1378070581]
+if _w:
+    _r=[(n,np.array(W2(n))) for n in _w[0]['nodes'] if n in ND]
+    print('ROAD1378070581',[(int(n==12759869179),round(float(p[0]),1),round(float(p[1]),1),round(float(Hc(*p)),2)) for n,p in _r])
+print('PROF',[round(float(Hc(371.4,z)),2) for z in np.arange(178,207,1.5)])
+print('PROFX',[round(float(Hc(x,178.1)),2) for x in np.arange(355,390,2.5)])
+print('SC',[round(float(Hc(*p)),2) for p in [(371.4,170),(371.4,160),(350,200),(395,200),(371.4,215)]])

@@ -3,10 +3,26 @@ from scipy import ndimage as nd
 from PIL import Image,ImageDraw
 R=2049; SX=1064/2048; SZ=709.293/2048
 h0=np.fromfile('/workspace/valvert/clean/heightmap_2049_smooth.raw','<u2').reshape(R,R)/65535*80.056+0.002
-h=h0.copy()
 GX=-532+np.arange(R)*SX; GZ=-354.646+np.arange(R)*SZ
 def Hs(a,x,z):
     fx=(x+532)/SX; fz=(z+354.646)/SZ; return nd.map_coordinates(a,[np.atleast_1d(fz),np.atleast_1d(fx)],order=1,mode='nearest')
+h=h0.copy()
+# IGN RGE ALTI check (geopf API, 4 m probe gen/offset_probe_4m.npy): NE block (x~100-430, z>~184) of the source DEM sits +4.2 m above the IGN MNT,
+# leaving a false 4 m cliff across the #9/#11/#13 access road (OSM 1378070581) -> remove the offset so the ground matches the MNT
+_h0raw=h0.copy(); _d=np.load('/workspace/v3/gen/offset_probe_4m.npy'); _m=np.abs(_d-4.2)<0.9
+_m=nd.binary_closing(_m,iterations=2); _m=nd.binary_fill_holes(_m); _m=nd.binary_opening(_m,iterations=2)
+_l,_n=nd.label(_m); _m=_l==(1+np.argmax(nd.sum(_m,_l,range(1,_n+1))))
+_off=float(np.median(_d[_m&(np.abs(_d-4.2)<0.9)]))
+_mf=nd.map_coordinates(_m.astype(float),[ (GZ[:,None]*0+GZ[:,None]-120)/4+0*GX[None,:], (GX[None,:]-100)/4+0*GZ[:,None]],order=1,mode='constant',cval=0.0)
+_M=_mf>0.5; h=h-_off*_M
+_B=nd.binary_dilation(_M,iterations=8)&~nd.binary_erosion(_M,iterations=8)   # +-4 m seam band: harmonic fill (no step, no dip)
+_ys,_xs=np.where(_B); _y0,_y1,_x0,_x1=_ys.min()-1,_ys.max()+2,_xs.min()-1,_xs.max()+2
+_s=h[_y0:_y1,_x0:_x1].copy(); _b=_B[_y0:_y1,_x0:_x1]
+for _i in range(1500):
+    _a=0.25*(np.roll(_s,1,0)+np.roll(_s,-1,0)+np.roll(_s,1,1)+np.roll(_s,-1,1)); _s[_b]=_a[_b]
+h[_y0:_y1,_x0:_x1]=_s; h0=h.copy()
+(_h0raw-h).astype('<f4').tofile('/workspace/valvert/clean/demfix_delta.raw')   # Unity drops old FBX road/path meshes by this
+print('DEMFIX offset',round(_off,2),'cells',int(_m.sum()))
 def dens(pts,step=1.0):
     pts=np.array(pts,float); out=[pts[0]]
     for a,b in zip(pts[:-1],pts[1:]):
@@ -74,7 +90,7 @@ tun=(X>=424.0)&(X<=430.0)&(Z>=-4.7)&(Z<=-1.3); h=np.where(tun,5.0,h)
 label[reg&(w_>0.5)]=3
 # Barral court: DEM pit (12.8 m) is a building-removal artefact -> level with school yard (18.15 m)
 dx=np.maximum(np.maximum(372-X,X-400),0); dz=np.maximum(np.maximum(216-Z,Z-266),0); dd=np.hypot(dx,dz)
-wb=np.clip(1-dd/5.0,0,1); wb=wb*wb*(3-2*wb); h=h*(1-wb)+18.15*wb
+wb=np.clip(1-dd/5.0,0,1); wb=wb*wb*(3-2*wb); h=h*(1-wb)+(18.15-_off)*wb   # yard level re-based with the IGN offset fix
 # grade the two fin stairways (OSM 260433023/024): steady descent dam(12.0) -> avenue
 for lo,hi in (((438.8,-11.1),(458.7,9.1)),((427.3,9.8),(454.4,17.3))):
     lo=np.array(lo);hi=np.array(hi);d=hi-lo;L=np.linalg.norm(d);d/=L
