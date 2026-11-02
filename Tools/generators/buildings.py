@@ -84,11 +84,14 @@ def wall_bays(p,g,ytop,kind,tone,rnd,shutters=True):
                     elif kind=='apt': row=rnd.choice([8,9,9,11]) if s>0 else rnd.choice([9,11,2])
                     elif kind=='bakery': row=2
                     else: row=rnd.choice([2,11,11,10,9])
-                if MZ[0] and kind=='apt' and bw>=2.0: row=(6 if (s==0 and i==longest and j==mid) else rnd.choice([12,13,14,3]))
+                if MZ[0] and kind=='apt' and bw>=2.0: row=(2 if (s==0 and i==longest and j==mid) else rnd.choice([4,4,5,6])); ENT.append((q0,q1,d,out,y0,bw)) if row==2 else None
                 if kind=='apt' and row==3 and not OFFICE[0]: row=rnd.choice([3,3,12,13,14])      # roller shutters at varied heights
                 if kind=='house' and row==0 and rnd.random()<0.4: row=15
                 if s==0 and ((kind=='apt' and row==6) or (kind=='house' and row==1)): ENT.append((q0,q1,d,out,y0,bw))
                 b_quad('facade',(q0[0],y0,q0[1]),(q1[0],y0,q1[1]),(q1[0],y1,q1[1]),(q0[0],y1,q0[1]),cell(tone,row,0.03,0.09,0.93,0.98) if kind=='bakery' else cell(tone,row,0,1,0.0,1.0),out)
+                if G168[0] and kind=='apt' and j%2==1 and row!=6 and bw>=2.0:   # #168: dark grey horizontal bands between the window bays (user photos)
+                    o_=np.array([out[0],out[2]])*0.035; a_=q0+o_; b_=q1+o_
+                    b_quad('band_grey',(a_[0],y0+0.75,a_[1]),(b_[0],y0+0.75,b_[1]),(b_[0],y0+2.35,b_[1]),(a_[0],y0+2.35,a_[1]),[(0,0),(1,0),(1,1),(0,1)],out)
                 if kind=='apt' and row==4 and s>=1:
                     cm=(q0+q1)/2+np.array([out[0],out[2]])*0.65; yaw=math.atan2(d[1],d[0])
                     b_box('white_trim',(cm[0],y0-0.05,cm[1]),(bw*0.92,0.18,1.3),yaw)
@@ -206,10 +209,10 @@ def porches(kind,c0):
             b_quad('housenum',(a_[0],yp,a_[1]),(b_[0],yp,b_[1]),(b_[0],yp+0.2,b_[1]),(a_[0],yp+0.2,a_[1]),[(u0,0),(u1,0),(u1,1),(u0,1)],out)
         NPLATES[0]+=1
 exec(open('/workspace/v3/names.py').read())
-MAISON_TONE=2; MZ=[False]; BI={}; BL=[]; nb_=dict(house=0,apt=0,comm=0,small=0); rc_={}
+MAISON_TONE=2; MZ=[False]; G168=[False]; YT={}; BI={}; BL=[]; nb_=dict(house=0,apt=0,comm=0,small=0); rc_={}
 for e in _osm:
     if e['type']!='way' or 'building' not in e.get('tags',{}) or e['nodes'][0]!=e['nodes'][-1]: continue
-    if e['id'] in (62590936,): continue
+    if e['id'] in (62590936,62592236): continue   # 62592236 = bin-store row behind #168, built in env168.py
     t=e['tags']
     p=[((_N[n]['lon']-6.107796675787339)*77484.85,(_N[n]['lat']-45.88915585177747)*111132.9) for n in e['nodes'][:-1] if n in _N]
     if len(p)<3: continue
@@ -233,7 +236,8 @@ for e in _osm:
     elif ar>260 and top>5: kind='apt'
     elif ar<45 or bt in('garage','garages','shed','roof','service'): kind='small'
     else: kind='house'
-    MZ[0]=e['id']==62594137
+    MZ[0]=e['id']==62594137; G168[0]=e['id']==62591705
+    if e['id']==62597331: top=17.5   # stepped block: low wings ~17-19 m nDSM, raised middle added in env168.py
     if e['id']==62594137: kind='apt'; top=max(top,10.6)   # rue de l'Orme (OSM 62594137 apartments, 3 levels; nDSM p50 10.6 m) -> flat roof, parapet, gravel
     OFFICE[0]=bool(np.hypot(c0[0]-258.4,c0[1]-244.3)<5)   # ASSEDIC Croix de Barral: rendered office, ribbon windows, nDSM 9.4 m -> 3 storeys
     if OFFICE[0]: kind='apt'
@@ -248,8 +252,8 @@ for e in _osm:
         rm='roof_terracotta' if MAISON else roof_colour(p); rc_[rm]=rc_.get(rm,0)+1
         hip_roof(c,u,v,ha,hb,ye,pitch,rm,(not MAISON) and (rnd.random()<0.45 or rect<0.8),tone,True,rnd)
     elif kind=='apt':
-        tone=5 if OFFICE[0] else (MAISON_TONE if MZ[0] else rnd.choice([5,5,0,1,2,3,4])); yt=max(yb+5.6,g+0.25+top-0.8)
-        wall_bays(p,g,yt,'apt',tone,rnd)
+        tone=5 if (OFFICE[0] or G168[0] or e['id']==62597331) else (MAISON_TONE if MZ[0] else rnd.choice([5,5,0,1,2,3,4])); yt=max(yb+5.6,g+0.25+top-0.8)
+        wall_bays(p,g,yt,'apt',tone,rnd); YT[e['id']]=yt
         if not OFFICE[0]: porches('apt',c0)
         flat_roof(p,yt,rnd.choice(['roof_gravel','roof_gravel2','roof_gravel3']),0.8,tone)
         yaw=math.atan2(u[1],u[0]); U2=np.array(u); V2=np.array(v); _pp=_Path(p); IN=lambda q,r=1.8:_pp.contains_point(tuple(q),radius=-r) and _pp.contains_point(tuple(q),radius=r)
@@ -467,6 +471,7 @@ for m,(V,T,UV) in M.items(): addmesh('Pave_'+m,m,V,T,UV)
 print('paved polys',len(PAVE))
 exec(open('/workspace/v3/street.py').read())
 exec(open('/workspace/v3/signs_named.py').read())
+exec(open('/workspace/v3/env168.py').read())
 for m,(V,T,UV) in BM.items():
     if m=='facade_chim': m2='facade'
     addmesh('Bld_'+m,'facade' if m=='facade_chim' else m,V,T,UV)
