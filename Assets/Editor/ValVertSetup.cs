@@ -48,7 +48,7 @@ public static class ValVertSetup {
             for(int k=0;k<vv.Length;k+=3){ var w=mm.MultiplyPoint3x4(vv[k]); d.Add(w.y-(terr.SampleHeight(w)+tgo.transform.position.y)); }
             d.Sort(); int n=d.Count; L($"{nm}: vertex height above Unity terrain n={n} p10={d[n/10]:F2} median={d[n/2]:F2} p90={d[n*9/10]:F2} min={d[0]:F2}");
         }
-        ValVertDress.PaintPBR(td); ValVertDress.Surfaces(root); ValVertWoods.BuildEast(terr); ValVertDress.Vegetation(terr); ValVertWoods.Meshes(null); foreach(var t in root.GetComponentsInChildren<Transform>(true)) if(t.name=="Buildings"){ t.gameObject.SetActive(false); L("hidden FBX Buildings (replaced by procedural V3 buildings)"); } ValVertWoods.Meshes(null,"east_meshes.json","V3_East"); ValVertWoods.Cars(); ValVertWoods.Grass(terr); ValVertDress.SkyPost();
+        ValVertDress.PaintPBR(td); ValVertDress.Surfaces(root); ValVertWoods.BuildEast(terr); ValVertDress.Vegetation(terr); ValVertWoods.Meshes(null); foreach(var t in root.GetComponentsInChildren<Transform>(true)) if(t.name=="Buildings"){ t.gameObject.SetActive(false); L("hidden FBX Buildings (replaced by procedural V3 buildings)"); } ValVertWoods.Meshes(null,"east_meshes.json","V3_East"); ValVertWoods.Cars(); ValVertWoods.Decals(); ValVertWoods.Grass(terr); ValVertDress.SkyPost();
         // light
         var lg=new GameObject("Sun"); var li=lg.AddComponent<Light>(); li.type=LightType.Directional; li.color=new Color(.95f,.96f,.98f); li.intensity=0.8f; li.shadows=LightShadows.Soft;
         lg.transform.rotation=Quaternion.Euler(18f,230f,0f);
@@ -90,6 +90,8 @@ public static class ValVertSetup {
           shF("cmp9_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f);
           shF("cmp10_street_cars.png",new Vector3(470.5f,0,40.0f),new Vector3(0.25f,-0.08f,1f),1.6f);
           shF("cmp10_cars_close.png",new Vector3(483.0f,0,56.0f),new Vector3(-0.8f,-0.25f,0.3f),1.6f);
+          shF("cmp10_asphalt_close.png",new Vector3(476.0f,0,46.0f),new Vector3(0.2f,-0.55f,1f),1.5f);
+          shF("cmp11_car_detail.png",new Vector3(475.0f,0,48.0f),new Vector3(0.55f,-0.12f,0.8f),1.3f);
           shF("cmp9_facade.png",new Vector3(363.6f,0,141.5f),new Vector3(1f,-0.08f,0.05f),4.6f);
           shF("cmp9_window_road.png",new Vector3(373.2f,0,168.9f),new Vector3(-0.05f,-0.22f,1f),9.0f);   // #9 (OSM 62591705) north-facade upper window -> access road 1378070581
           shF("cmp9_access_road.png",new Vector3(371.0f,0,180.5f),new Vector3(-0.03f,-0.12f,-1f),1.7f);   // from the Rue du Val Vert junction down the access road toward #9-11-13

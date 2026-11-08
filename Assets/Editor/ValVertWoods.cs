@@ -50,8 +50,8 @@ public static class ValVertWoods {
             {"roof_shelter",M("roof_shelter",null,null,new Color(.35f,.37f,.38f),0.4f,0.5f).Also()},
             {"lamp_head",M("lamp_head",null,null,new Color(.3f,.3f,.3f),0.5f,0.5f).Also()},
             {"glass",Glass()},
-            {"asphalt",M("asphalt_road",ValVertDress.Tex(G+"asphalt_02_diff.jpg"),ValVertDress.Tex(G+"asphalt_02_nor.jpg",true),new Color(.8f,.8f,.8f),0.15f)},
-            {"parking",M("parking_lot",ValVertDress.Tex(GEN+"parking.png"),null,Color.white,0.15f)},
+            {"asphalt",AsphaltWW("asphalt_road")},
+            {"parking",ParkingMat()},
             {"ring",M("ring_ortho",ValVertDress.Tex(GEN+"ring_ortho2010.jpg"),null,new Color(.9f,.9f,.9f),0.0f)},
             {"boxwood",M("boxwood",null,null,new Color(.13f,.24f,.08f),0.15f).Also()},
             {"conifer",M("conifer",null,null,new Color(.07f,.18f,.09f),0.1f).Also()},
@@ -102,7 +102,8 @@ public static class ValVertWoods {
             {"clad_grey",M("clad_grey",ValVertDress.Tex(GEN+"cladding_light_diff.png"),ValVertDress.Tex(GEN+"corrugated_iron_02_nor_gl_1k.jpg",true),new Color(.62f,.64f,.66f),0.35f,0.3f)},
             {"clad_beige",M("clad_beige",ValVertDress.Tex(GEN+"cladding_light_diff.png"),ValVertDress.Tex(GEN+"corrugated_iron_02_nor_gl_1k.jpg",true),new Color(.92f,.86f,.74f),0.35f,0.3f)},
             {"band_grey",M("band_grey",null,null,new Color(.66f,.67f,.68f),0.35f).Also()},
-            {"glass_refl",M("glass_refl",null,null,new Color(.30f,.33f,.36f),0.94f,0.1f)},
+            {"glass_refl",M("glass_refl",ValVertDress.Tex(GEN+"window_interior.png"),null,new Color(.62f,.64f,.66f),0.93f,0.15f)},
+            {"shutter",M("shutter_pvc",ValVertDress.Tex(GEN+"shutter_diff.png"),ValVertDress.Tex(GEN+"shutter_nor.png",true),Color.white,0.35f)},
             {"render_beige",M("render_beige",ValVertDress.Tex(G+"white_plaster_rough_01_bright.jpg"),ValVertDress.Tex(G+"white_plaster_rough_01_nor.jpg",true),new Color(.84f,.80f,.72f),0.1f)},
             {"glass_door",M("glass_door",null,null,new Color(.16f,.20f,.23f),0.9f,0.2f)},
             {"render_grey",M("render_grey",ValVertDress.Tex(GEN+"grey_plaster_diff_1k.jpg"),ValVertDress.Tex(GEN+"grey_plaster_nor_gl_1k.jpg",true),new Color(.78f,.77f,.74f),0.1f)},
@@ -181,20 +182,60 @@ public static class ValVertWoods {
         ValVertDress.Counts["_grass_clumps"]=(int)total; L($"grass clumps={total} chunks={chunks}");
     }
 
+    static Material CM(string n,Color c,float sm,float met=0,bool emis=false){ var m=ValVertDress.Mat(n,null,null,false,c,sm); m.SetFloat("_Metallic",met); m.SetFloat("_Cull",0); if(emis){ m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor",c*0.35f); m.globalIlluminationFlags=MaterialGlobalIlluminationFlags.None; } EditorUtility.SetDirty(m); return m; }
+    static Material ParkingMat(){ var m=M("parking_lot",ValVertDress.Tex(GEN+"parking.png"),ValVertDress.Tex(GEN+"parking_nor.jpg",true),Color.white,1f);
+        var ms=ValVertDress.Tex(GEN+"parking_ms.png"); if(ms){ var ti=(TextureImporter)AssetImporter.GetAtPath(GEN+"parking_ms.png"); if(ti&&ti.sRGBTexture){ ti.sRGBTexture=false; ti.SaveAndReimport(); } m.SetTexture("_MetallicGlossMap",ms); m.EnableKeyword("_METALLICSPECGLOSSMAP"); }
+        EditorUtility.SetDirty(m); return m; }
+    public static Material AsphaltWW(string n){ var m=M(n,ValVertDress.Tex(G+"asphalt_ww_diff.jpg"),ValVertDress.Tex(G+"asphalt_ww_nor.jpg",true),Color.white,1f);
+        var ms=ValVertDress.Tex(G+"asphalt_ww_ms.png"); if(ms){ var ti=(TextureImporter)AssetImporter.GetAtPath(G+"asphalt_ww_ms.png"); if(ti&&ti.sRGBTexture){ ti.sRGBTexture=false; ti.SaveAndReimport(); }
+            m.SetTexture("_MetallicGlossMap",ms); m.EnableKeyword("_METALLICSPECGLOSSMAP"); m.SetFloat("_Smoothness",1f); }
+        m.SetFloat("_BumpScale",1.2f); EditorUtility.SetDirty(m); return m; }
+    static Material DecalMat(string n){ var t=AssetDatabase.LoadAssetAtPath<Texture2D>(GEN+"decals/"+n+".png"); var m=ValVertDress.Mat("decal_"+n,t,null,false,Color.white,n=="oil_0"||n=="oil_1"||n=="oil_2"?0.75f:(n=="manhole"?0.35f:0.1f));
+        if(n=="manhole"){ m.SetFloat("_Metallic",0.6f); m.SetFloat("_AlphaClip",1); m.SetFloat("_Cutoff",0.5f); m.EnableKeyword("_ALPHATEST_ON"); m.renderQueue=2460; return m; }
+        m.SetFloat("_Surface",1); m.SetFloat("_Blend",0); m.SetFloat("_SrcBlend",(float)BlendMode.SrcAlpha); m.SetFloat("_DstBlend",(float)BlendMode.OneMinusSrcAlpha); m.SetFloat("_ZWrite",0); m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); m.renderQueue=2990; m.SetOverrideTag("RenderType","Transparent"); EditorUtility.SetDirty(m); return m; }
+    public static void Decals(){
+        var root=new GameObject("V3_RoadDecals"); var added=new List<Collider>();
+        foreach(var r in Object.FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None)){ var mn=r.sharedMaterial?r.sharedMaterial.name.ToLower():""; if(!(mn.Contains("asphalt")||mn=="road"||mn.Contains("roadgrey"))) continue; if(mn.Contains("leaves")) continue;
+            var mf=r.GetComponent<MeshFilter>(); if(!mf||!mf.sharedMesh) continue; var c=r.gameObject.AddComponent<MeshCollider>(); c.sharedMesh=mf.sharedMesh; added.Add(c); }
+        Physics.SyncTransforms(); Debug.Log("[VV] decal colliders "+added.Count);
+        string[] kinds={"oil_0","oil_1","oil_2","crack_0","crack_1","crack_2","patch_0","patch_1","manhole"}; var mats=kinds.ToDictionary(k=>k,k=>DecalMat(k));
+        var quad=GameObject.CreatePrimitive(PrimitiveType.Quad); var qm=quad.GetComponent<MeshFilter>().sharedMesh; Object.DestroyImmediate(quad);
+        int mask=~0; var rnd=new System.Random(2010); int n=0; var cnt=new Dictionary<string,int>();
+        System.Action<Vector3,string,float> put=(p,k,size)=>{ RaycastHit h=default; bool ok=false; float bd=1e9f; foreach(var hh in Physics.RaycastAll(new Vector3(p.x,400f,p.z),Vector3.down,900f,mask)){ if(added.Contains(hh.collider)&&hh.distance<bd){bd=hh.distance;h=hh;ok=true;} } if(!ok) return; if(h.normal.y<0.85f) return;
+            var g=new GameObject("decal_"+k); g.transform.SetParent(root.transform); g.AddComponent<MeshFilter>().sharedMesh=qm; var mr=g.AddComponent<MeshRenderer>(); mr.sharedMaterial=mats[k]; mr.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+            g.transform.position=h.point+h.normal*(k=="manhole"?0.012f:0.008f+0.001f*(n%5)); g.transform.rotation=Quaternion.LookRotation(-h.normal)*Quaternion.Euler(0,0,(float)rnd.NextDouble()*360f);
+            float sx=size*(k.StartsWith("patch")?(0.8f+(float)rnd.NextDouble()*1.6f):1f); g.transform.localScale=new Vector3(sx,size,1); n++; cnt[k]=(cnt.ContainsKey(k)?cnt[k]:0)+1; };
+        // oil drips under/behind every parked car
+        var cars=GameObject.Find("V3_Cars2010"); if(cars) foreach(Transform c in cars.transform){ var cp=c.position; foreach(Collider cc in c.GetComponentsInChildren<Collider>()) cc.enabled=false;
+            put(cp+c.right*0.6f*(rnd.Next(2)*2-1),"oil_"+rnd.Next(3),0.7f+(float)rnd.NextDouble()*0.6f); put(cp+c.right*(1.4f+(float)rnd.NextDouble()),"oil_"+rnd.Next(3),0.5f+(float)rnd.NextDouble()*0.5f); }
+        // scatter across all asphalt of the map
+        for(int i=0;i<60000;i++){ var p=new Vector3(-400f+(float)rnd.NextDouble()*1300f,0,-450f+(float)rnd.NextDouble()*1100f); double u=rnd.NextDouble();
+            if(u<0.020) put(p,"crack_"+rnd.Next(3),2.0f+(float)rnd.NextDouble()*2.5f);
+            else if(u<0.030) put(p,"oil_"+rnd.Next(3),0.6f+(float)rnd.NextDouble()*1.2f);
+            else if(u<0.036) {}
+            else if(u<0.0385) put(p,"manhole",0.68f); }
+        foreach(var c in added) Object.DestroyImmediate(c);
+        Debug.Log("[VV] decals placed "+n+" "+string.Join(",",cnt.Select(kv=>kv.Key+"="+kv.Value)));
+    }
     public static void Cars(){
-        var root=new GameObject("V3_Cars2010"); var tex=AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Cars/Textures/colormap.png");
-        var mat=ValVertDress.Mat("kenney_car",tex,null,false,Color.white,0.55f);
-        string[] kinds={"hatch_clio","hatch_307","mpv_picasso","hatch_clio","hatch_307"};
-        // 2010 French fleet paints: silver, grey, white, dark blue, black, dark red
-        Color[] paints={new Color(.62f,.63f,.64f),new Color(.32f,.33f,.35f),new Color(.86f,.86f,.84f),new Color(.07f,.11f,.22f),new Color(.04f,.04f,.05f),new Color(.30f,.05f,.06f),new Color(.70f,.71f,.72f),new Color(.86f,.86f,.84f)};
-        var mGlass=ValVertDress.Mat("car_glass",null,null,false,new Color(.02f,.025f,.03f),0.97f); mGlass.SetFloat("_Metallic",0.35f);
-        var mChrome=ValVertDress.Mat("car_chrome",null,null,false,new Color(.75f,.76f,.78f),0.85f); mChrome.SetFloat("_Metallic",0.9f);
-        var mRub=ValVertDress.Mat("car_rubber",null,null,false,new Color(.03f,.03f,.03f),0.2f);
-        var mBlack=ValVertDress.Mat("car_black",null,null,false,new Color(.05f,.05f,.055f),0.35f);
-        var mRed=ValVertDress.Mat("car_tail",null,null,false,new Color(.5f,.02f,.02f),0.8f);
-        var mPlate=ValVertDress.Mat("car_plate",null,null,false,new Color(.92f,.92f,.9f),0.6f);
-        var mLamp=ValVertDress.Mat("car_lamp",null,null,false,new Color(.85f,.87f,.9f),0.9f);
-        var mSteel=ValVertDress.Mat("car_steel",null,null,false,new Color(.45f,.47f,.5f),0.6f); mSteel.SetFloat("_Metallic",0.7f);
+        var root=new GameObject("V3_Cars2010");
+        string[] kinds={"clio2","p206","megane2","picasso","clio2","kangoo","twingo1","p206","megane2"};
+        // muted 2000s French fleet colours: silver, dark blue, bordeaux, grey, white, black, gris platine, vert foncé
+        Color[] paints={new Color(.55f,.56f,.57f),new Color(.06f,.09f,.18f),new Color(.24f,.04f,.06f),new Color(.28f,.29f,.31f),new Color(.80f,.80f,.78f),new Color(.03f,.03f,.035f),new Color(.66f,.67f,.68f),new Color(.07f,.14f,.10f)};
+        float[] metal={0.75f,0.6f,0.55f,0.7f,0.05f,0.4f,0.8f,0.5f};
+        var mGlass=CM("car2_glass",new Color(.30f,.33f,.36f),0.9f,0.0f);
+        var mChrome=CM("car2_chrome",new Color(.8f,.8f,.82f),0.9f,1f);
+        var mTyre=CM("car2_tyre",new Color(.035f,.035f,.035f),0.18f);
+        var mRim=CM("car2_rim",new Color(.42f,.43f,.45f),0.6f,0.8f);
+        var mHub=CM("car2_hubcap",new Color(.36f,.37f,.39f),0.45f,0.3f);
+        var mTrim=CM("car2_trim",new Color(.045f,.045f,.05f),0.3f);
+        var mSeam=CM("car2_seam",new Color(.01f,.01f,.01f),0.1f);
+        var mUnder=CM("car2_under",new Color(.02f,.02f,.02f),0.1f);
+        var mHead=CM("car2_headlamp",new Color(.85f,.88f,.92f),0.95f,0.3f,true);
+        var mTail=CM("car2_taillamp",new Color(.55f,.02f,.02f),0.92f,0f,true);
+        var mInd=CM("car2_indicator",new Color(.85f,.42f,.05f),0.9f,0f,true);
+        var mDirt=CM("car2_dirt",new Color(.16f,.14f,.11f),0.15f);
+        var mBump=CM("car2_bumper_grey",new Color(.22f,.22f,.23f),0.25f);
         float[,] P={{478,52,0},{478,63,180},{474.5f,52,0},{471,63,180},{467.5f,52,0},
                     {580,-76,90},{580,-63,95},{573,-74,88},{566,-66,92},
                     {467,103,90},{461,103,270},{443,103.5f,92},
@@ -203,25 +244,33 @@ public static class ValVertWoods {
         float[,] PO={{333f,206.8f,92},{338.6f,207.2f,268},{344.2f,206.6f,90}};   // Orme car park (user photo 01M6E4PR55): 3 parked cars
         { var Pn=new float[P.GetLength(0)+3,3]; for(int i=0;i<3;i++)for(int k=0;k<3;k++) Pn[i,k]=PO[i,k]; for(int i=0;i<P.GetLength(0);i++)for(int k=0;k<3;k++) Pn[i+3,k]=P[i,k]; P=Pn; }  // last 3 = GF roof deck (OSM 62591761)
         int DECK0=P.GetLength(0)-3;
-        var tm=Terrain.activeTerrain;
+        var tm=Terrain.activeTerrain; int placed=0;
         for(int i=0;i<P.GetLength(0);i++){
-            var pf=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Cars/"+kinds[i%kinds.Length]+".obj"); if(pf==null){Debug.Log("[VV] car missing");continue;}
-            var g=(GameObject)Object.Instantiate(pf,root.transform); g.name="car_"+i;
-            var paint=ValVertDress.Mat("car_paint_"+i,null,null,false,paints[(i*5+3)%paints.Length],0.9f); paint.SetFloat("_Metallic",(i%3==0)?0.6f:0.3f); paint.EnableKeyword("_SPECULARHIGHLIGHTS_OFF"); paint.DisableKeyword("_SPECULARHIGHLIGHTS_OFF");
-            foreach(var r in g.GetComponentsInChildren<Renderer>()){ var ms=r.sharedMaterials; for(int k=0;k<ms.Length;k++){ string n=ms[k]?ms[k].name.ToLower():"";
-                Material m=paint; if(n.Contains("glass")||n.Contains("clearlens")) m=mGlass; else if(n.Contains("chrome")) m=mChrome; else if(n.Contains("rubber")) m=mRub;
-                else if(n.Contains("black")||n.Contains("interior")) m=mBlack; else if(n.Contains("tail")||n.Contains("redlens")) m=mRed; else if(n.Contains("lamp")) m=mLamp; else if(n.Contains("steel")) m=mSteel; else if(n.Contains("plate")) m=mPlate;
-                ms[k]=m; } r.sharedMaterials=ms; }
-            var b=new Bounds(g.transform.position,Vector3.zero); foreach(var r in g.GetComponentsInChildren<Renderer>()) b.Encapsulate(r.bounds);
-            // real-size procedural cars: no rescale
+            string k=kinds[(i*7+2)%kinds.Length];
+            var p0=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Cars/v2/"+k+"_lod0.obj"); var p1=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Cars/v2/"+k+"_lod1.obj");
+            if(p0==null){Debug.Log("[VV] car missing "+k);continue;}
+            var g=new GameObject("car_"+i+"_"+k); g.transform.SetParent(root.transform,false);
+            var l0=(GameObject)Object.Instantiate(p0,g.transform); l0.name="LOD0"; var l1=p1?(GameObject)Object.Instantiate(p1,g.transform):null; if(l1) l1.name="LOD1";
+            int ci=(i*5+3)%paints.Length; var pc=paints[ci];
+            var paint=CM("car2_paint_"+i,pc,0.86f,metal[ci]); paint.SetFloat("_ClearCoat",1); 
+            bool oldbump=(k=="clio2"||k=="kangoo"||k=="twingo1")&&(i%2==0);
+            int pl=i%6;
+            var pF=ValVertDress.Mat("car2_plateF_"+i,AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Cars/v2/plateF_"+pl+".png"),null,false,Color.white,0.55f);
+            var pR=ValVertDress.Mat("car2_plateR_"+i,AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Cars/v2/plateR_"+pl+".png"),null,false,Color.white,0.55f);
+            foreach(var r in g.GetComponentsInChildren<Renderer>()){ var ms=r.sharedMaterials; for(int q=0;q<ms.Length;q++){ string n=ms[q]?ms[q].name.ToLower():"";
+                Material m=paint;
+                if(n.StartsWith("glass")) m=mGlass; else if(n.StartsWith("chrome")) m=mChrome; else if(n.StartsWith("tyre")) m=mTyre; else if(n.StartsWith("rim")) m=mRim; else if(n.StartsWith("hubcap")) m=mHub;
+                else if(n.StartsWith("trim")) m=mTrim; else if(n.StartsWith("seam")) m=mSeam; else if(n.StartsWith("under")) m=mUnder; else if(n.StartsWith("headlamp")) m=mHead; else if(n.StartsWith("taillamp")) m=mTail;
+                else if(n.StartsWith("indicator")) m=mInd; else if(n.StartsWith("dirt")) m=mDirt; else if(n.StartsWith("platef")) m=pF; else if(n.StartsWith("plater")) m=pR; else if(n.StartsWith("bumper")) m=oldbump?mBump:paint;
+                ms[q]=m; } r.sharedMaterials=ms; r.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.On; }
+            if(l1){ var lg=g.AddComponent<LODGroup>(); lg.SetLODs(new[]{ new LOD(0.18f,l0.GetComponentsInChildren<Renderer>()), new LOD(0.015f,l1.GetComponentsInChildren<Renderer>()) }); lg.RecalculateBounds(); }
             var pos=new Vector3(P[i,0],0,P[i,1]); Terrain t=(pos.x>532f&&East)?East:null;
             if(t==null){ foreach(var tt in Terrain.activeTerrains){ var tp=tt.transform.position; if(pos.x>=tp.x&&pos.x<=tp.x+tt.terrainData.size.x&&pos.z>=tp.z&&pos.z<=tp.z+tt.terrainData.size.z) t=tt; } }
             float y=(t?t.SampleHeight(pos)+t.transform.position.y:0)+0.07f; if(i>=DECK0) y=8.36f+0.03f;
-            g.transform.position=new Vector3(pos.x,y,pos.z); g.transform.rotation=Quaternion.Euler(0,P[i,2],0);
-            // drop so lowest point touches ground
-            var b2=new Bounds(g.transform.position,Vector3.zero); bool f=true; foreach(var r in g.GetComponentsInChildren<Renderer>()){ if(f){b2=r.bounds;f=false;} else b2.Encapsulate(r.bounds);} g.transform.position+=Vector3.up*(y-b2.min.y);
-            GameObjectUtility.SetStaticEditorFlags(g,StaticEditorFlags.BatchingStatic);
+            g.transform.position=new Vector3(pos.x,y,pos.z); g.transform.rotation=Quaternion.Euler(0,P[i,2]+90f,0);
+            var b2=new Bounds(); bool f=true; foreach(var r in l0.GetComponentsInChildren<Renderer>()){ if(f){b2=r.bounds;f=false;} else b2.Encapsulate(r.bounds);} g.transform.position+=Vector3.up*(y-b2.min.y-0.005f);
+            GameObjectUtility.SetStaticEditorFlags(g,StaticEditorFlags.BatchingStatic); placed++;
         }
-        Debug.Log("[VV] cars placed "+P.GetLength(0));
+        Debug.Log("[VV] cars placed "+placed);
     }
 }

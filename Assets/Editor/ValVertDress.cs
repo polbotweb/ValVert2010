@@ -24,7 +24,7 @@ public static class ValVertDress {
         AssetDatabase.CreateAsset(tl,"Assets/ValVert/Ground/"+n+".terrainlayer"); return tl; }
     static TerrainLayer TL2(string n,float tile){ var tl=new TerrainLayer(); tl.diffuseTexture=Tex(G+n+"_diff.jpg"); tl.normalMapTexture=Tex(G+n+"_nor.jpg",true); tl.tileSize=new Vector2(tile,tile); tl.smoothness=0.05f; tl.metallic=0; AssetDatabase.CreateAsset(tl,"Assets/ValVert/Ground/"+n+".terrainlayer"); return tl; }
     public static void PaintPBR(TerrainData td){
-        td.terrainLayers=new[]{TL("leafy_grass",3f),TL("forest_leaves_02",3f),TL("stony_dirt_path",2.5f),TL2("roadgrey",4f),TL2("concrete_floor_02",2.5f),TL2("rock_wall_08",3f),TL2("asphalt_02",4f),TL2("river_small_rocks",1.5f)};
+        var aww=TL2("asphalt_ww",4f); td.terrainLayers=new[]{TL("leafy_grass",3f),TL("forest_leaves_02",3f),TL("stony_dirt_path",2.5f),aww,TL2("concrete_floor_02",2.5f),TL2("rock_wall_08",3f),TL2("asphalt_02",4f),TL2("river_small_rocks",1.5f)};
         int A=1024; td.alphamapResolution=A; var fm=Mask("canopy_orig.png"); var fm2=Mask("veg_forest.png"); var pm=Mask("paths_mask.png"); var rm=Mask("roads_mask.png");
         var al=new float[A,A,8];
         for(int y=0;y<A;y++)for(int x=0;x<A;x++){ float u=x/(float)(A-1), v=y/(float)(A-1);
@@ -130,7 +130,7 @@ public static class ValVertDress {
         var plaster=Mat("plaster",Tex(G+"white_plaster_rough_01_bright.jpg"),Tex(G+"white_plaster_rough_01_nor.jpg",true),false,Color.white,0.05f);
         var roof=Mat("roof",Tex(G+"grey_roof_tiles_diff.jpg"),Tex(G+"grey_roof_tiles_nor.jpg",true),false,new Color(.62f,.42f,.36f),0.15f);
         var dirt=Mat("path_dirt",Tex(G+"stony_dirt_path_diff.jpg"),Tex(G+"stony_dirt_path_nor.jpg",true),false,Color.white,0.05f);
-        var asph=Mat("road",Tex(G+"asphalt_02_diff.jpg"),Tex(G+"asphalt_02_nor.jpg",true),false,new Color(.78f,.78f,.78f),0.12f);
+        var asph=ValVertWoods.AsphaltWW("road");
         var water=Mat("water",null,null,false,new Color(.12f,.15f,.13f),0.8f);
         foreach(var mf in root.GetComponentsInChildren<MeshFilter>(true)){ var n=mf.name; var mr=mf.GetComponent<MeshRenderer>(); if(!mr||!mf.gameObject.activeInHierarchy) continue;
             if(n=="Buildings"){ var src=mf.sharedMesh; var tr=mf.transform; World(src,tr.localToWorldMatrix,out var wv,out var wt);

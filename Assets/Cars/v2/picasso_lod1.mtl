@@ -1,0 +1,15 @@
+newmtl paint
+Kd 0.5 0.5 0.5
+
+newmtl trim
+Kd 0.5 0.5 0.5
+
+newmtl glass
+Kd 0.5 0.5 0.5
+
+newmtl under
+Kd 0.5 0.5 0.5
+
+newmtl tyre
+Kd 0.5 0.5 0.5
+
