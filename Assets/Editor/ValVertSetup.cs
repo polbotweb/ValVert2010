@@ -146,6 +146,7 @@ public static class ValVertSetup {
         { var tA=Terrain.activeTerrain; float hA=tA.SampleHeight(new Vector3(-25,0,105))+tA.transform.position.y; float hB=tA.SampleHeight(new Vector3(7,0,146))+tA.transform.position.y; oc.transform.position=new Vector3(-25,hA+38,105); oc.transform.LookAt(new Vector3(7,hB+8,146)); } Shot(oc,SHOTS+"v3_aerial_apts.png");
         RenderSettings.fogDensity=fd; Object.DestroyImmediate(oc.gameObject);
         foreach(var kv in ValVertDress.Counts) L("COUNT "+kv.Key+" = "+kv.Value);
+        ValVertEnvWire.Wire();   // runtime clock + seasons + street lights
         EditorSceneManager.SaveScene(scene,"Assets/Scenes/ValVert.unity"); AssetDatabase.SaveAssets();
         L("DONE");
     }

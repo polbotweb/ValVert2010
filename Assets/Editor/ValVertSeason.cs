@@ -37,3 +37,57 @@ public static class ValVertSeason {
         AssetDatabase.SaveAssets(); Debug.Log("[VV] season "+s+" weather "+w);
     }
 }
+
+// ---- Runtime environment wiring (clock + seasons + street lights) and batch verification ----
+public static class ValVertEnvWire {
+    const string M="Assets/ValVert/Mats/", GEN="Assets/ValVert/Gen/", G="Assets/ValVert/Ground/", T="Assets/ValVert/Veg/tex/", P6="Assets/ValVert/Veg/pilot6/";
+    static Texture2D Tx(string p)=>AssetDatabase.LoadAssetAtPath<Texture2D>(p);
+    static Material Mt(string n)=>AssetDatabase.LoadAssetAtPath<Material>(M+n+".mat");
+    public static GameObject Wire(){
+        var go=GameObject.Find("ValVertEnvironment")??new GameObject("ValVertEnvironment");
+        var clk=go.GetComponent<ValVertClock>()??go.AddComponent<ValVertClock>();
+        var sea=go.GetComponent<ValVertSeasons>()??go.AddComponent<ValVertSeasons>();
+        var sl=go.GetComponent<ValVertStreetLights>()??go.AddComponent<ValVertStreetLights>();
+        sea.foliage.Clear(); sea.overlays.Clear(); sea.wetSurfaces.Clear();
+        foreach(var sp in new[]{"tree_small_02","fir_tree_01"}) foreach(var v in new[]{"autumnA","autumnB","green"}){ var m=Mt(sp+"_leaves_"+v); if(m) sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,greenTex=Tx(T+sp+"_leaves_green.png"),autumnTex=Tx(T+sp+"_leaves_"+v+".png")}); }
+        foreach(var v in new[]{"autumnA","green"}){ var m=Mt("shrub_02_"+v); if(m) sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,greenTex=Tx(T+"shrub_02_leaves_green.png"),autumnTex=Tx(T+"shrub_02_leaves_"+v+".png")}); }
+        { var m=Mt("laurel_leaves_acg"); if(m) sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,evergreen=true}); }
+        // Ultimate Nature Starter adapter: classify its foliage materials once the package is imported (vendor files stay local)
+        foreach(var guid in AssetDatabase.FindAssets("t:Material",new[]{"Assets"})){ var p=AssetDatabase.GUIDToAssetPath(guid); var pl=p.ToLower();
+            if(!(pl.Contains("ultimate nature")||pl.Contains("ultimatenature")||pl.Contains("/uns")||pl.Contains("innerverse"))) continue;
+            var n=System.IO.Path.GetFileNameWithoutExtension(pl); bool leafy=n.Contains("leaf")||n.Contains("leaves")||n.Contains("foliage")||n.Contains("bush")||n.Contains("branch")||n.Contains("grass")||n.Contains("flower");
+            if(!leafy) continue; bool ever=n.Contains("spruce")||n.Contains("pine")||n.Contains("fir")||n.Contains("conifer")||n.Contains("grass");
+            sea.foliage.Add(new ValVertSeasons.Foliage{mat=AssetDatabase.LoadAssetAtPath<Material>(p),evergreen=ever}); Debug.Log("[VV] UNS foliage adapter: "+p+(ever?" (evergreen)":" (deciduous)")); }
+        sea.overlays.Add(new ValVertSeasons.Overlay{mat=Mt("asphalt_leaves"),baseTex=Tx(G+"asphalt_ww_diff.jpg"),baseNor=Tx(G+"asphalt_ww_nor.jpg"),litterTex=Tx(GEN+"asphalt_leaves.png"),litterNor=Tx(G+"asphalt_02_nor.jpg")});
+        sea.overlays.Add(new ValVertSeasons.Overlay{mat=Mt("corr_leaves"),baseTex=Tx(GEN+"corrugated_iron_02_diff_1k.jpg"),litterTex=Tx(GEN+"corrugated_leaves.png")});
+        sea.forestLayer=AssetDatabase.LoadAssetAtPath<TerrainLayer>(G+"forest_leaves_02.terrainlayer");
+        sea.forestLitterTex=Tx(G+"forest_leaves_02_diff.jpg"); sea.forestLitterNor=Tx(G+"forest_leaves_02_nor.jpg"); sea.forestBaseTex=Tx(P6+"fg02_diff.jpg"); sea.forestBaseNor=Tx(P6+"fg02_nor.jpg");
+        foreach(var n in new[]{"asphalt_road","road","parking_lot","asphalt_leaves","leafground","forest_fg02","stair_earth","path_concrete"}){ var m=Mt(n); if(m) sea.wetSurfaces.Add(new ValVertSeasons.Wet{mat=m}); }
+        clk.month=10; clk.day=20; clk.hour=11f; clk.timeScale=60f;   // default: autumn 2010, late morning (reference photos)
+        sl.Collect(); Debug.Log("[VV] environment wired: foliage "+sea.foliage.Count+" overlays "+sea.overlays.Count+" wet "+sea.wetSurfaces.Count);
+        return go;
+    }
+    // Batch test: open the saved scene, step the clock, log state, and render same-camera frames.
+    // unity run /workspace/ValVertGame ... -- -executeMethod ValVertEnvWire.Test
+    public static void Test(){
+        var scene=UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/ValVert.unity");
+        var go=Wire(); var clk=go.GetComponent<ValVertClock>(); var sea=go.GetComponent<ValVertSeasons>(); var sl=go.GetComponent<ValVertStreetLights>();
+        // 1) clock advances: simulate 30 h in 10-min steps, log transitions
+        clk.Set(6,21,0f); float prevAlt=-99; bool lampsOn=false;
+        for(int i=0;i<180;i++){ clk.Advance(1f/6f); clk.Apply(); sl.Tick(); bool on=clk.SunAltitudeDeg<sl.switchAltitude; if(on!=lampsOn){ Debug.Log($"[VV] ENVTEST lamps {(on?"ON":"OFF")} at {clk.Now:yyyy-MM-dd HH:mm} alt={clk.SunAltitudeDeg:F1}"); lampsOn=on; } if(prevAlt<0&&clk.SunAltitudeDeg>=0) Debug.Log($"[VV] ENVTEST sunrise {clk.Now:MM-dd HH:mm} az={clk.SunAzimuthDeg:F0}"); if(prevAlt>=0&&clk.SunAltitudeDeg<0) Debug.Log($"[VV] ENVTEST sunset {clk.Now:MM-dd HH:mm} az={clk.SunAzimuthDeg:F0}"); prevAlt=clk.SunAltitudeDeg; }
+        foreach(var d in new[]{(3,20),(6,21),(9,22),(12,21)}){ clk.Set(d.Item1,d.Item2,12.5f); Debug.Log($"[VV] ENVTEST noon {d.Item1:00}-{d.Item2:00} alt={clk.SunAltitudeDeg:F1} utc+{clk.UtcOffset()}"); }
+        // 2) renders
+        var cam=new GameObject("envcam").AddComponent<Camera>(); cam.fieldOfView=70; var cams=Camera.allCameras;
+        string D="/workspace/valvert/env_runtime/"; System.IO.Directory.CreateDirectory(D);
+        var terr=Terrain.activeTerrain;
+        void Shot(string n,Vector3 p,Vector3 look,float up){ float gy=terr.SampleHeight(p)+terr.transform.position.y; cam.transform.position=new Vector3(p.x,gy+up,p.z); cam.transform.rotation=Quaternion.LookRotation(look);
+            var rt=new RenderTexture(1024,576,24); cam.targetTexture=rt; cam.Render(); RenderTexture.active=rt; var t=new Texture2D(1024,576,TextureFormat.RGB24,false); t.ReadPixels(new Rect(0,0,1024,576),0,0); t.Apply(); System.IO.File.WriteAllBytes(D+n,t.EncodeToPNG()); RenderTexture.active=null; cam.targetTexture=null; Object.DestroyImmediate(rt); Object.DestroyImmediate(t); }
+        Vector3 pA=new Vector3(369.9f,0,128.0f), lA=new Vector3(0f,0.04f,1f);       // alley below #9
+        Vector3 pS=new Vector3(470.5f,0,40.0f), lS=new Vector3(0.25f,-0.08f,1f);    // street with lamps (Aldi car park)
+        foreach(var h in new[]{(6.5f,"0650"),(12.5f,"1230"),(18.7f,"1842"),(22.5f,"2230")}){ clk.Set(10,20,h.Item1); sl.Tick(); sea.Tick(); Shot("day_"+h.Item2+"_alley.png",pA,lA,1.6f); Shot("day_"+h.Item2+"_street.png",pS,lS,1.6f); Debug.Log($"[VV] ENVTEST render {h.Item2} alt={clk.SunAltitudeDeg:F1} daylight={clk.Daylight01:F2}"); }
+        foreach(var d in new[]{(4,20,"spring"),(7,15,"summer"),(10,25,"autumn"),(1,20,"winter")}){ clk.Set(d.Item1,d.Item2,13f); sea.Tick(); sl.Tick(); Shot("season_"+d.Item3+"_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f); Shot("season_"+d.Item3+"_alley.png",pA,lA,1.6f); Debug.Log($"[VV] ENVTEST season {d.Item3} leafCover={sea.LeafCover:F2} autumn={sea.Autumn:F2} litter={sea.Litter:F2}"); }
+        clk.Set(10,20,11f); sea.Tick(); sl.Tick();
+        UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
+        Debug.Log("[VV] ENVTEST DONE");
+    }
+}
