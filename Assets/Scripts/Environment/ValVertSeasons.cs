@@ -11,7 +11,7 @@ using System.Collections.Generic;
 [ExecuteAlways]
 public class ValVertSeasons : MonoBehaviour
 {
-    [Serializable] public class Foliage { public Material mat; public Texture greenTex, autumnTex; public bool evergreen; [NonSerialized] public Color baseCol; [NonSerialized] public float baseCut; [NonSerialized] public Texture origTex; }
+    [Serializable] public class Foliage { public Material mat; public Texture greenTex, autumnTex; public bool evergreen; public string colorProp = "_BaseColor", texProp = "_BaseMap", cutProp = "_Cutoff"; public Color autumnTint = new Color(1f, 1f, 1f, 1f); public bool hasRest; public Color restColor = Color.white; public float restCut = 0.45f; /* pristine values captured at wiring time (avoid drift from saved, already-tinted materials) */ [NonSerialized] public Color baseCol; [NonSerialized] public float baseCut; [NonSerialized] public Texture origTex; }
     [Serializable] public class Overlay { public Material mat; public Texture baseTex, baseNor, litterTex, litterNor; [NonSerialized] public Texture o1, o2; }
     [Serializable] public class Wet { public Material mat; [NonSerialized] public Color c; [NonSerialized] public float s; [NonSerialized] public bool cached; }
 
@@ -47,7 +47,7 @@ public class ValVertSeasons : MonoBehaviour
     void Cache()
     {
         if (cached) return; cached = true;
-        foreach (var f in foliage) if (f.mat) { f.baseCol = f.mat.HasProperty("_BaseColor") ? f.mat.GetColor("_BaseColor") : Color.white; f.baseCut = f.mat.HasProperty("_Cutoff") ? f.mat.GetFloat("_Cutoff") : 0.45f; f.origTex = f.mat.GetTexture("_BaseMap"); }
+        foreach (var f in foliage) if (f.mat) { f.baseCol = f.mat.HasProperty(f.colorProp) ? f.mat.GetColor(f.colorProp) : Color.white; f.baseCut = f.mat.HasProperty(f.cutProp) ? f.mat.GetFloat(f.cutProp) : 0.45f; if (f.hasRest) { f.baseCol = f.restColor; f.baseCut = f.restCut; } f.origTex = f.mat.HasProperty(f.texProp) ? f.mat.GetTexture(f.texProp) : null; }
         foreach (var o in overlays) if (o.mat) { o.o1 = o.mat.GetTexture("_BaseMap"); o.o2 = o.mat.GetTexture("_BumpMap"); }
     }
 
@@ -63,15 +63,15 @@ public class ValVertSeasons : MonoBehaviour
             if (!f.mat) continue;
             if (f.evergreen)
             {
-                bool w = SeasonName == "winter"; f.mat.SetColor("_BaseColor", f.baseCol * (w ? 0.85f : 1f)); continue;
+                bool w = SeasonName == "winter"; f.mat.SetColor(f.colorProp, f.baseCol * (w ? 0.85f : 1f)); continue;
             }
             var tex = Autumn > 0.5f && f.autumnTex ? f.autumnTex : (f.greenTex ? f.greenTex : f.origTex);
-            if (tex) f.mat.SetTexture("_BaseMap", tex);
+            if (tex) f.mat.SetTexture(f.texProp, tex);
             Color spring = new Color(.95f, 1.05f, .85f);
             float fresh = Mathf.Clamp01(1 - Mathf.Abs(doy - 130) / 30f);          // fresh light green around early May
-            f.mat.SetColor("_BaseColor", f.baseCol * Color.Lerp(Color.white, spring, fresh));   // keep the material's own tint (UNS leaves are white masks tinted by _BaseColor)
+            var tint = Color.Lerp(Color.white, spring, fresh); if (!f.autumnTex) tint = Color.Lerp(tint, f.autumnTint, Autumn); f.mat.SetColor(f.colorProp, f.baseCol * tint);   // keep the material's own tint (UNS leaves are white masks tinted by _BaseColor)
             // canopy thinning via alpha cutoff: 0.45 full .. 0.97 almost bare
-            f.mat.SetFloat("_Cutoff", Mathf.Lerp(0.995f, Mathf.Min(f.baseCut, 0.45f), LeafCover));
+            f.mat.SetFloat(f.cutProp, Mathf.Lerp(0.995f, Mathf.Min(f.baseCut, 0.45f), LeafCover));
         }
         bool lit = Litter > 0.5f;
         foreach (var o in overlays)
@@ -98,7 +98,7 @@ public class ValVertSeasons : MonoBehaviour
     {
         // restore shared materials so editor assets are not left in a play-mode state
         if (!cached) return;
-        foreach (var f in foliage) if (f.mat) { f.mat.SetColor("_BaseColor", f.baseCol); f.mat.SetFloat("_Cutoff", f.baseCut); if (f.origTex) f.mat.SetTexture("_BaseMap", f.origTex); }
+        foreach (var f in foliage) if (f.mat) { f.mat.SetColor(f.colorProp, f.baseCol); f.mat.SetFloat(f.cutProp, f.baseCut); if (f.origTex) f.mat.SetTexture(f.texProp, f.origTex); }
         foreach (var o in overlays) if (o.mat) { if (o.o1) o.mat.SetTexture("_BaseMap", o.o1); if (o.o2) o.mat.SetTexture("_BumpMap", o.o2); }
         foreach (var w in wetSurfaces) if (w.mat && w.cached) { w.mat.SetColor("_BaseColor", w.c); w.mat.SetFloat("_Smoothness", w.s); }
         cached = false;

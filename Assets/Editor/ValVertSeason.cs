@@ -48,10 +48,16 @@ public static class ValVertEnvWire {
         var clk=go.GetComponent<ValVertClock>()??go.AddComponent<ValVertClock>();
         var sea=go.GetComponent<ValVertSeasons>()??go.AddComponent<ValVertSeasons>();
         var sl=go.GetComponent<ValVertStreetLights>()??go.AddComponent<ValVertStreetLights>();
+        var prevRest=new System.Collections.Generic.Dictionary<Material,(Color,float)>(); foreach(var f in sea.foliage) if(f.mat&&f.hasRest) prevRest[f.mat]=(f.restColor,f.restCut);
         sea.foliage.Clear(); sea.overlays.Clear(); sea.wetSurfaces.Clear();
         foreach(var sp in new[]{"tree_small_02","fir_tree_01"}) foreach(var v in new[]{"autumnA","autumnB","green"}){ var m=Mt(sp+"_leaves_"+v); if(m) sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,evergreen=sp=="fir_tree_01",greenTex=Tx(T+sp+"_leaves_green.png"),autumnTex=Tx(T+sp+"_leaves_"+v+".png")}); }
         foreach(var v in new[]{"autumnA","green"}){ var m=Mt("shrub_02_"+v); if(m) sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,greenTex=Tx(T+"shrub_02_leaves_green.png"),autumnTex=Tx(T+"shrub_02_leaves_"+v+".png")}); }
         { var m=Mt("laurel_leaves_acg"); if(m) sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,evergreen=true}); }
+        // European Forests (MysticForge) Leaves_URP shader-graph: properties have generated reference names
+        foreach(var sp in new[]{("Ash",new Color(1.0f,0.95f,0.60f)),("Birch",new Color(1.1f,0.97f,0.50f)),("Chestnut",new Color(1.0f,0.78f,0.42f))})
+            foreach(var guid in AssetDatabase.FindAssets("t:Material",new[]{"Assets/Realistic Tree/Source/Materials/URP/Leaves/"+sp.Item1})){
+                var m=AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid)); if(!m) continue;
+                sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,colorProp="Color_118e71b9c10c4eed91eea60a3ba568b1",texProp="Texture2D_bfb8accc76d9413bad4df77aa898cfaf",cutProp="Vector1_7c4b0ab460c949e098609f36717c4248",autumnTint=sp.Item2}); }
         // Ultimate Nature Starter adapter: classify its foliage materials once the package is imported (vendor files stay local)
         foreach(var guid in AssetDatabase.FindAssets("t:Material",new[]{"Assets"})){ var p=AssetDatabase.GUIDToAssetPath(guid); var pl=p.ToLower();
             if(!(pl.Contains("ultimate nature")||pl.Contains("ultimatenature")||pl.Contains("/uns")||pl.Contains("innerverse"))) continue;
@@ -63,6 +69,7 @@ public static class ValVertEnvWire {
         sea.forestLayer=AssetDatabase.LoadAssetAtPath<TerrainLayer>(G+"forest_leaves_02.terrainlayer");
         sea.forestLitterTex=Tx(G+"forest_leaves_02_diff.jpg"); sea.forestLitterNor=Tx(G+"forest_leaves_02_nor.jpg"); sea.forestBaseTex=Tx(P6+"fg02_diff.jpg"); sea.forestBaseNor=Tx(P6+"fg02_nor.jpg");
         foreach(var n in new[]{"asphalt_road","road","parking_lot","asphalt_leaves","leafground","forest_fg02","stair_earth","path_concrete"}){ var m=Mt(n); if(m) sea.wetSurfaces.Add(new ValVertSeasons.Wet{mat=m}); }
+        foreach(var f in sea.foliage) if(f.mat){ f.hasRest=true; if(prevRest.TryGetValue(f.mat,out var pr)){ f.restColor=pr.Item1; f.restCut=pr.Item2; continue; } f.restColor=f.mat.HasProperty(f.colorProp)?f.mat.GetColor(f.colorProp):Color.white; f.restCut=f.mat.HasProperty(f.cutProp)?f.mat.GetFloat(f.cutProp):0.45f; if(f.colorProp=="_BaseColor"&&!f.mat.name.StartsWith("UNS")){ f.restColor=Color.white; f.restCut=0.45f; } }
         clk.month=10; clk.day=20; clk.hour=11f; clk.timeScale=60f;   // default: autumn 2010, late morning (reference photos)
         sl.Collect(); Debug.Log("[VV] environment wired: foliage "+sea.foliage.Count+" overlays "+sea.overlays.Count+" wet "+sea.wetSurfaces.Count);
         return go;

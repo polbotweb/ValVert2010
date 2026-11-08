@@ -63,3 +63,7 @@ crashlytics-build.properties
 Assets/InnerverseInteractive/
 Assets/InnerverseInteractive.meta
 Assets/ValVert/Prefabs/uns_*
+# European Forests - Realistic Trees (MysticForge, Asset Store EULA) - local only
+Assets/Realistic Tree/
+Assets/Realistic Tree.meta
+Assets/ValVert/Prefabs/ef_*

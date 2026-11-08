@@ -50,6 +50,14 @@ public static class ValVertDress {
     static Dictionary<string,float> hts=new Dictionary<string,float>();
     // Ultimate Nature Starter (Innerverse Interactive; Asset Store EULA, git-ignored, imported locally by the user). Returns null if not imported.
     public const string UNSDIR="Assets/InnerverseInteractive/Ultimate Nature \u2013 Starter/Environment/";
+    // European Forests - Realistic Trees (MysticForge; Asset Store EULA, git-ignored). URP prefab wrapped: falling-leaf particles removed, LODGroup on root.
+    static GameObject EF(string rel,string name){ var a=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Realistic Tree/Prefabs/URP/"+rel+".prefab"); if(!a) return null;
+        var root=new GameObject(name); var inst=(GameObject)PrefabUtility.InstantiatePrefab(a); PrefabUtility.UnpackPrefabInstance(inst,PrefabUnpackMode.Completely,InteractionMode.AutomatedAction); inst.transform.SetParent(root.transform,false);
+        foreach(var ps in inst.GetComponentsInChildren<ParticleSystem>(true)){ if(ps.gameObject==inst){ var pr=ps.GetComponent<ParticleSystemRenderer>(); Object.DestroyImmediate(ps); if(pr) Object.DestroyImmediate(pr); } else Object.DestroyImmediate(ps.gameObject); }
+        var src=inst.GetComponentInChildren<LODGroup>(); LOD[] lods=src?src.GetLODs():new[]{new LOD(0.02f,inst.GetComponentsInChildren<Renderer>())}; if(src) Object.DestroyImmediate(src);
+        if(lods.Length>0) lods[lods.Length-1].screenRelativeTransitionHeight=Mathf.Min(lods[lods.Length-1].screenRelativeTransitionHeight,0.008f);
+        var lg=root.AddComponent<LODGroup>(); lg.SetLODs(lods); lg.RecalculateBounds();
+        float h=baseH(root); var pf=PrefabUtility.SaveAsPrefabAsset(root,"Assets/ValVert/Prefabs/"+name+".prefab"); Object.DestroyImmediate(root); hts[name]=h; L($"EF prefab {name} h={h:F2} lods={lods.Length}"); return pf; }
     static GameObject UNS(string rel,string name){ var a=AssetDatabase.LoadAssetAtPath<GameObject>(UNSDIR+rel+".prefab"); if(!a) return null;
         var root=new GameObject(name); var inst=(GameObject)PrefabUtility.InstantiatePrefab(a); PrefabUtility.UnpackPrefabInstance(inst,PrefabUnpackMode.Completely,InteractionMode.AutomatedAction); inst.transform.SetParent(root.transform,false);
         foreach(var r in inst.GetComponentsInChildren<Renderer>()) foreach(var m in r.sharedMaterials) if(m&&m.name=="UNS_Bush_Leaves"){ m.SetColor("_BaseColor",new Color(.27f,.37f,.15f)); EditorUtility.SetDirty(m); }   // tone the lime stylised tint down to Seynod hedge green
@@ -66,12 +74,15 @@ public static class ValVertDress {
         var itBark=Mat("fir_tree_01_bark",Tex(T+"fir_tree_01_bark_diff_1k.jpg"),Tex(T+"fir_tree_01_bark_nor_gl_1k.jpg",true),false,Color.white);
         var itBr=Mat("island_tree_02_branch",Tex(T+"island_tree_02_branches_diff_1k.jpg"),Tex(T+"island_tree_02_branches_nor_gl_1k.jpg",true),true,Color.white);
         var trees=new List<GameObject>();
-        int vi=0; foreach(var v in new[]{"autumnA","autumnB","green"}){ trees.Add(TreePrefab("tree_small_02",v,tsBark,tsBr)); trees.Add(UNS("Trees/Fir/Prefabs/UNS_Spruce_0"+(vi++%2==0?"1":"2"),"uns_spruce_"+v) ?? TreePrefab("fir_tree_01",v,itBark,itBark)); }
+        int vi=0; string[] efSlot={"Chestnut/Chestnut 7","Birch/Birch 4","Ash/Ash 7"}; int si=0; foreach(var v in new[]{"autumnA","autumnB","green"}){ trees.Add(EF(efSlot[si++],"ef_slot_"+v) ?? TreePrefab("tree_small_02",v,tsBark,tsBr)); trees.Add(UNS("Trees/Fir/Prefabs/UNS_Spruce_0"+(vi++%2==0?"1":"2"),"uns_spruce_"+v) ?? TreePrefab("fir_tree_01",v,itBark,itBark)); }
         var shA=Mat("shrub_02_autumnA",Tex(T+"shrub_02_leaves_autumnA.png"),null,true,Color.white); var shG=Mat("shrub_02_green",Tex(T+"shrub_02_leaves_green.png"),null,true,Color.white);
         var fern=Mat("fern_02",Tex(T+"fern_02_leaves_green.png"),null,true,new Color(.85f,.8f,.6f));
         var grass=Mat("grass_medium_01",Tex(T+"grass_medium_01_leaves_green.png"),null,true,new Color(.85f,.82f,.65f));
         var small=new List<GameObject>{ UNS("Vegetation/Bushes/Prefabs/UNS_Bush","uns_bush_a") ?? Simple("shrub_02__a",shA,"shrub_a_autumn"), UNS("Vegetation/Bushes/Prefabs/UNS_Bush","uns_bush_c") ?? Simple("shrub_02__c",shG,"shrub_c_green"), Simple("fern_02__b",fern,"fern_b"), Simple("fern_02__c",fern,"fern_c"), Simple("laurel_cc0",Mat("laurel_leaves_acg",Tex("Assets/ValVert/Veg/pilot6/laurel_acg_leaves.png"),Tex("Assets/ValVert/Veg/pilot6/laurel_acg_nor.png",true),true,Color.white,0.55f),"laurel_cc0") };
         var protos=trees.Concat(small).ToList();
+        // extra European Forests broadleaf variants (appended so existing indices stay valid); broadleaf slots are remapped among them
+        var efExtra=new[]{"Ash/Ash 1","Ash/Ash 4","Ash/Ash 5","Ash/Ash 8","Chestnut/Chestnut 3","Chestnut/Chestnut 4","Chestnut/Chestnut 8","Birch/Birch 2","Birch/Birch 6"}.Select(p=>EF(p,"ef_"+p.Split('/')[1].Replace(" ","_").ToLower())).Where(p=>p).ToList();
+        int efBase=protos.Count; protos.AddRange(efExtra);
         td.treePrototypes=protos.Select(p=>new TreePrototype{prefab=p}).ToArray();
         var fm=Mask("canopy_orig.png"); var ex=Mask("veg_excl.png"); var me=Mask("veg_meadow.png");
         var rnd=new System.Random(42); System.Func<float> R=()=>(float)rnd.NextDouble();
@@ -79,7 +90,7 @@ public static class ValVertDress {
         System.Func<float,float,bool> bad=(x,z)=> x<-531||x>531||z<-354||z>354|| S(ex,x,z)>0.35f || ValVertWoods.Lab(x,z)!=0 || ValVertWoods.Hidden(new Vector3(x,0,z));
         System.Func<float,float,float,bool> clear=(x,z,rad)=>{ if(bad(x,z)) return false; for(int k=0;k<8;k++){ float a=k*Mathf.PI/4; if(bad(x+Mathf.Cos(a)*rad,z+Mathf.Sin(a)*rad)) return false;} return true; };
         System.Func<float,float,bool> spawnZone=(x,z)=> ValVertWoods.ShotClear(x,z);
-        System.Action<int,float,float,float> add=(pi,x,z,targetH)=>{ if(protos[pi].name.StartsWith("uns_spruce")&&!clear(x,z,3.2f)) pi-=1; if(protos[pi].name.StartsWith("uns_bush")&&!clear(x,z,1.4f)) return;   /* 2.4 m UNS bush must not sit on stairs/paths */   /* wide spruce crown needs clearance (stairs/paths): fall back to the broadleaf of the same variant */ if(protos[pi].name.StartsWith("island")) targetH*=0.7f; float s=targetH/hts[protos[pi].name];
+        System.Action<int,float,float,float> add=(pi,x,z,targetH)=>{ if(protos[pi].name.StartsWith("uns_spruce")&&!clear(x,z,3.2f)) pi-=1; if(protos[pi].name.StartsWith("ef_slot_")&&efExtra.Count>0&&R()<0.75f) pi=efBase+(int)(R()*efExtra.Count)%efExtra.Count;   /* species/model variety: ash, chestnut, birch */ if(protos[pi].name.StartsWith("ef_")){ if(targetH>hts[protos[pi].name]*2.0f){ int best=pi; float bh=hts[protos[pi].name]; for(int k=efBase;k<protos.Count;k++) if(hts[protos[k].name]>bh&&R()<0.6f){best=k;bh=hts[protos[k].name];} pi=best; } targetH=Mathf.Min(targetH,hts[protos[pi].name]*2.0f); }   /* EF models are 4-10 m: cap upscale at 2x so trunks/leaves keep natural size */ if(protos[pi].name.StartsWith("uns_bush")&&!clear(x,z,1.4f)) return;   /* 2.4 m UNS bush must not sit on stairs/paths */   /* wide spruce crown needs clearance (stairs/paths): fall back to the broadleaf of the same variant */ if(protos[pi].name.StartsWith("island")) targetH*=0.7f; float s=targetH/hts[protos[pi].name];
             list.Add(new TreeInstance{prototypeIndex=pi,position=new Vector3((x+532f)/1064f,0,(z+354.646f)/709.293f),heightScale=s,widthScale=s*(0.85f+0.3f*R()),rotation=R()*Mathf.PI*2,color=Color.Lerp(Color.white,new Color(.85f,.9f,.8f),R()),lightmapColor=Color.white});
             Counts[protos[pi].name]=(Counts.TryGetValue(protos[pi].name,out var c)?c:0)+1; };
         int pickVar(){ float r=R(); return r<0.72f?2:(r<0.9f?0:1); }
