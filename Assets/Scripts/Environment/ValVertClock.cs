@@ -26,10 +26,14 @@ public class ValVertClock : MonoBehaviour
     public Light sun;          // directional
     public Light moon;         // directional, created if missing
     public Material daySkybox; // existing HDRI/procedural sky
-    public Color nightAmbient = new Color(0.035f, 0.045f, 0.07f);
-    public Color dayAmbient = new Color(0.55f, 0.58f, 0.62f);
-    public float sunMaxIntensity = 1.25f, moonIntensity = 0.06f;
+    public Color nightAmbient = new Color(0.030f, 0.040f, 0.070f);   // starlight/airglow + urban skyglow (Annecy basin)
+    public Color dayAmbient = new Color(0.58f, 0.57f, 0.54f);   // neutral-warm (removed blue cast)
+    public float sunMaxIntensity = 1.25f, moonIntensity = 0.12f;
     public Gradient sunColor;
+    [Header("Weather inputs (set by ValVertWeather)")]
+    [Range(0, 1)] public float cloudCover = 0.3f;
+    [Range(0, 1)] public float fogAmount = 0f;
+    [Range(0, 1)] public float precip = 0f;
 
     // outputs
     public float SunAltitudeDeg { get; private set; }
@@ -40,7 +44,7 @@ public class ValVertClock : MonoBehaviour
     public float YearFraction => (DayOfYear - 1 + hour / 24f) / (DateTime.IsLeapYear(year) ? 366f : 365f);
     public event Action Changed;
 
-    float baseSkyExposure = 1f; bool expCached;
+    float baseSkyExposure = 1f; bool expCached; Color baseTint = Color.gray; bool tintCached;
 
     void OnEnable()
     {
@@ -101,6 +105,26 @@ public class ValVertClock : MonoBehaviour
         azDeg = (az * 180 / Math.PI + 180) % 360;                 // from north, clockwise
     }
 
+    public float MoonAltitudeDeg { get; private set; }
+    public float MoonAzimuthDeg { get; private set; }
+    public float MoonIllumination { get; private set; }   // 0 new .. 1 full
+
+    // Low-precision lunar position (Meeus-style truncated series, ~1 deg) and phase from elongation.
+    public static void MoonPosition(DateTime utc, double lat, double lon, out double alt, out double az, out double illum)
+    {
+        double d = (utc - new DateTime(2000, 1, 1, 12, 0, 0)).TotalDays, R = Math.PI / 180;
+        double L = 218.316 + 13.176396 * d, M = 134.963 + 13.064993 * d, F = 93.272 + 13.229350 * d;
+        double lam = (L + 6.289 * Math.Sin(M * R)) * R, bet = 5.128 * Math.Sin(F * R) * R, eps = 23.439 * R;
+        double ra = Math.Atan2(Math.Sin(lam) * Math.Cos(eps) - Math.Tan(bet) * Math.Sin(eps), Math.Cos(lam));
+        double dec = Math.Asin(Math.Sin(bet) * Math.Cos(eps) + Math.Cos(bet) * Math.Sin(eps) * Math.Sin(lam));
+        double lst = (280.16 + 360.9856235 * d + lon) * R, H = lst - ra, la = lat * R;
+        alt = Math.Asin(Math.Sin(la) * Math.Sin(dec) + Math.Cos(la) * Math.Cos(dec) * Math.Cos(H)) / R;
+        az = (Math.Atan2(Math.Sin(H), Math.Cos(H) * Math.Sin(la) - Math.Tan(dec) * Math.Cos(la)) / R + 180 + 360) % 360;
+        double g = (357.528 + 0.9856003 * d) * R, sunLam = (280.46 + 0.9856474 * d) * R + (1.915 * Math.Sin(g) + 0.02 * Math.Sin(2 * g)) * R;
+        double e = Math.Acos(Math.Cos(bet) * Math.Cos(lam - sunLam));
+        illum = (1 - Math.Cos(e)) / 2;
+    }
+
     public void Apply()
     {
         int diy = DateTime.IsLeapYear(year) ? 366 : 365;
@@ -117,33 +141,45 @@ public class ValVertClock : MonoBehaviour
             float aboveHorizon = Mathf.Clamp01(Mathf.InverseLerp(-1f, 10f, SunAltitudeDeg));
             sun.intensity = sunMaxIntensity * aboveHorizon * Mathf.Lerp(0.35f, 1f, Mathf.Clamp01(SunAltitudeDeg / 40f));
             sun.color = sunColor.Evaluate(Mathf.Clamp01(SunAltitudeDeg / 30f));
+            sun.intensity *= Mathf.Lerp(1f, 0.28f, cloudCover);                                   // overcast: diffuse light, weak direct sun
+            sun.shadowStrength = Mathf.Lerp(0.9f, 0.25f, cloudCover);
             sun.enabled = sun.intensity > 0.001f;
         }
+        MoonPosition(Now.AddHours(-UtcOffset()), latitude, longitude, out double malt, out double maz, out double mil);
+        MoonAltitudeDeg = (float)malt; MoonAzimuthDeg = (float)maz; MoonIllumination = (float)mil;
         if (moon)
         {
-            // simple moon: opposite-ish to the sun, fixed fill (no lunar phase model)
-            moon.transform.rotation = Quaternion.Euler(35f, SunAzimuthDeg, 0f);
-            moon.intensity = moonIntensity * (1f - Daylight01);
+            // moonlight: real 2010 position & phase; ~0.25 lux full moon -> scaled to a readable but dark directional fill
+            moon.transform.rotation = Quaternion.Euler(Mathf.Max(MoonAltitudeDeg, 2f), MoonAzimuthDeg + 180f, 0f);
+            moon.intensity = (1f - cloudCover * 0.85f) * moonIntensity * MoonIllumination * Mathf.Clamp01(MoonAltitudeDeg / 10f) * (1f - Daylight01);
             moon.enabled = moon.intensity > 0.002f;
             moon.shadows = moon.enabled ? LightShadows.Soft : LightShadows.None;
         }
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
         Color dusk = new Color(.30f, .24f, .26f);
         float twilight = 1f - Mathf.Abs(Daylight01 * 2f - 1f);
-        RenderSettings.ambientLight = Color.Lerp(Color.Lerp(nightAmbient, dayAmbient, Daylight01), dusk, twilight * 0.35f);
-        RenderSettings.fogColor = Color.Lerp(new Color(.02f, .025f, .04f), new Color(.70f, .73f, .76f), Daylight01);
+        // sky light follows twilight more slowly than direct sun: civil twilight (sun -6..0) stays readable
+        float sky = Mathf.SmoothStep(0, 1, Mathf.InverseLerp(-9f, 3f, SunAltitudeDeg));
+        Color moonAmb = new Color(0.05f, 0.065f, 0.11f) * MoonIllumination * Mathf.Clamp01(MoonAltitudeDeg / 15f);
+        RenderSettings.ambientLight = Color.Lerp(Color.Lerp(nightAmbient + moonAmb, dayAmbient, sky), dusk, twilight * 0.35f);
+        RenderSettings.ambientLight = Color.Lerp(RenderSettings.ambientLight, new Color(.6f,.61f,.62f) * Mathf.Lerp(0.15f, 1f, sky), cloudCover * 0.5f * sky);   // overcast: flatter grey skylight
+        RenderSettings.fogColor = Color.Lerp(new Color(.03f, .035f, .045f), Color.Lerp(new Color(.72f, .72f, .70f), new Color(.62f, .63f, .64f), cloudCover), Daylight01);
+        RenderSettings.fog = true; RenderSettings.fogMode = FogMode.ExponentialSquared;
+        RenderSettings.fogDensity = 0.0008f + 0.004f * cloudCover * precip + 0.045f * fogAmount;   // light haze .. valley fog (~100 m visibility)
         if (RenderSettings.skybox && RenderSettings.skybox.HasProperty("_Exposure"))
         {
             if (!expCached) { baseSkyExposure = RenderSettings.skybox.GetFloat("_Exposure"); expCached = true; }
             // HDRI with baked sun: darken to near-black at night so no daytime sun shows
-            RenderSettings.skybox.SetFloat("_Exposure", baseSkyExposure * Mathf.Lerp(0.015f, 1f, Daylight01));
+            float skyE = Mathf.Lerp(0.03f + 0.05f * MoonIllumination * Mathf.Clamp01(MoonAltitudeDeg / 15f) * (1f - cloudCover), Mathf.Lerp(1f, 0.55f, cloudCover * precip + 0.3f * cloudCover), sky);
+            RenderSettings.skybox.SetFloat("_Exposure", baseSkyExposure * skyE);
+            if (RenderSettings.skybox.HasProperty("_Tint")) { if (!tintCached) { baseTint = RenderSettings.skybox.GetColor("_Tint"); tintCached = true; } RenderSettings.skybox.SetColor("_Tint", Color.Lerp(new Color(.30f, .38f, .62f), Color.Lerp(baseTint, new Color(.5f, .5f, .5f), cloudCover * 0.8f), sky)); }
         }
         Changed?.Invoke();
     }
 
     void OnDisable()
     {
-        if (expCached && RenderSettings.skybox && RenderSettings.skybox.HasProperty("_Exposure")) RenderSettings.skybox.SetFloat("_Exposure", baseSkyExposure);
+        if (expCached && RenderSettings.skybox && RenderSettings.skybox.HasProperty("_Exposure")) RenderSettings.skybox.SetFloat("_Exposure", baseSkyExposure); if (tintCached && RenderSettings.skybox) RenderSettings.skybox.SetColor("_Tint", baseTint);
         if (Instance == this) Instance = null;
     }
 }

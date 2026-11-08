@@ -11,15 +11,16 @@ using System.Collections.Generic;
 [ExecuteAlways]
 public class ValVertSeasons : MonoBehaviour
 {
-    [Serializable] public class Foliage { public Material mat; public Texture greenTex, autumnTex; public bool evergreen; public string colorProp = "_BaseColor", texProp = "_BaseMap", cutProp = "_Cutoff"; public Color autumnTint = new Color(1f, 1f, 1f, 1f); public bool hasRest; public Color restColor = Color.white; public float restCut = 0.45f; /* pristine values captured at wiring time (avoid drift from saved, already-tinted materials) */ [NonSerialized] public Color baseCol; [NonSerialized] public float baseCut; [NonSerialized] public Texture origTex; }
-    [Serializable] public class Overlay { public Material mat; public Texture baseTex, baseNor, litterTex, litterNor; [NonSerialized] public Texture o1, o2; }
+    [Serializable] public class Foliage { public Material mat; public Texture greenTex, autumnTex; public bool evergreen; public string colorProp = "_BaseColor", texProp = "_BaseMap", cutProp = "_Cutoff"; public Color autumnTint = new Color(1f, 1f, 1f, 1f), autumnTint2 = new Color(1f, 1f, 1f, 1f); public bool hasRest; public Color restColor = Color.white; public float restCut = 0.45f; /* pristine values captured at wiring time (avoid drift from saved, already-tinted materials) */ [NonSerialized] public Color baseCol; [NonSerialized] public float baseCut; [NonSerialized] public Texture origTex; }
+    [Serializable] public class Overlay { public Material mat; public Texture baseTex, baseNor, litterTex, litterNor; public Texture[] steps; [NonSerialized] public Texture o1, o2; }
     [Serializable] public class Wet { public Material mat; [NonSerialized] public Color c; [NonSerialized] public float s; [NonSerialized] public bool cached; }
 
     public List<Foliage> foliage = new List<Foliage>();
     public List<Overlay> overlays = new List<Overlay>();
-    public TerrainLayer forestLayer; public Texture forestLitterTex, forestLitterNor, forestBaseTex, forestBaseNor;
+    public TerrainLayer forestLayer; public Texture forestLitterTex, forestLitterNor, forestBaseTex, forestBaseNor; public Texture[] forestSteps;
     public List<Wet> wetSurfaces = new List<Wet>();
     [Range(0, 1)] public float wetness = 0f;
+    [Range(0, 1)] public float snowCover = 0f;   // set by ValVertWeather; ground overlays are then owned by the snow steps
     [Tooltip("Override automatic date-driven season (-1 = follow clock).")]
     [Range(-1, 1)] public float yearFractionOverride = -1f;
 
@@ -40,7 +41,7 @@ public class ValVertSeasons : MonoBehaviour
         LeafCover = leafOut * (1 - fall);
         Autumn = Ramp(doy, 265, 300) * (1 - fall * 0.3f);    // 22 Sep .. 27 Oct
         if (doy < 200) Autumn = 0;
-        Litter = Ramp(doy, 285, 300) * (1 - Ramp(doy, 340, 355)); // 12 Oct .. ~ 20 Dec
+        Litter = Ramp(doy, 278, 325) * (1 - Ramp(doy, 335, 366));   // fades in with leaf fall (early Oct..late Nov), decomposes/fades through December
         SeasonName = doy < 79 || doy >= 355 ? "winter" : doy < 172 ? "spring" : doy < 266 ? "summer" : "autumn";
     }
 
@@ -67,22 +68,24 @@ public class ValVertSeasons : MonoBehaviour
             }
             var tex = Autumn > 0.5f && f.autumnTex ? f.autumnTex : (f.greenTex ? f.greenTex : f.origTex);
             if (tex) f.mat.SetTexture(f.texProp, tex);
-            Color spring = new Color(.95f, 1.05f, .85f);
+            Color spring = new Color(1.06f, 1.08f, .80f);   // fresh yellow-green (was bluish)
             float fresh = Mathf.Clamp01(1 - Mathf.Abs(doy - 130) / 30f);          // fresh light green around early May
-            var tint = Color.Lerp(Color.white, spring, fresh); if (!f.autumnTex) tint = Color.Lerp(tint, f.autumnTint, Autumn); f.mat.SetColor(f.colorProp, f.baseCol * tint);   // keep the material's own tint (UNS leaves are white masks tinted by _BaseColor)
+            var tint = Color.Lerp(Color.white, spring, fresh); if (!f.autumnTex) { var at = Autumn < 0.5f ? Color.Lerp(Color.white, f.autumnTint, Autumn * 2f) : Color.Lerp(f.autumnTint, f.autumnTint2 == Color.white ? f.autumnTint : f.autumnTint2, Autumn * 2f - 1f); tint = new Color(tint.r * at.r, tint.g * at.g, tint.b * at.b, 1f); } f.mat.SetColor(f.colorProp, f.baseCol * tint);   // keep the material's own tint (UNS leaves are white masks tinted by _BaseColor)
             // canopy thinning via alpha cutoff: 0.45 full .. 0.97 almost bare
             f.mat.SetFloat(f.cutProp, Mathf.Lerp(0.995f, Mathf.Min(f.baseCut, 0.45f), LeafCover));
         }
-        bool lit = Litter > 0.5f;
-        foreach (var o in overlays)
+        bool lit = Litter > 0.5f; bool snowy = snowCover > 0.05f;
+        if (!snowy) foreach (var o in overlays)
         {
             if (!o.mat) continue;
             var t = lit ? o.litterTex : o.baseTex; var n = lit ? o.litterNor : o.baseNor;
+            if (o.steps != null && o.steps.Length > 1) t = o.steps[Mathf.Clamp(Mathf.RoundToInt(Litter * (o.steps.Length - 1)), 0, o.steps.Length - 1)];   // progressive coverage
             if (t) o.mat.SetTexture("_BaseMap", t); if (n) o.mat.SetTexture("_BumpMap", n);
         }
-        if (forestLayer)
+        if (forestLayer && !snowy)
         {
             var t = lit ? forestLitterTex : forestBaseTex; var n = lit ? forestLitterNor : forestBaseNor;
+            if (forestSteps != null && forestSteps.Length > 1) t = forestSteps[Mathf.Clamp(Mathf.RoundToInt(Litter * (forestSteps.Length - 1)), 0, forestSteps.Length - 1)];
             if (t && forestLayer.diffuseTexture != t) { forestLayer.diffuseTexture = (Texture2D)t; if (n) forestLayer.normalMapTexture = (Texture2D)n; }
         }
         foreach (var w in wetSurfaces)

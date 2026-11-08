@@ -54,23 +54,26 @@ public static class ValVertEnvWire {
         foreach(var v in new[]{"autumnA","green"}){ var m=Mt("shrub_02_"+v); if(m) sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,greenTex=Tx(T+"shrub_02_leaves_green.png"),autumnTex=Tx(T+"shrub_02_leaves_"+v+".png")}); }
         { var m=Mt("laurel_leaves_acg"); if(m) sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,evergreen=true}); }
         // European Forests (MysticForge) Leaves_URP shader-graph: properties have generated reference names
-        foreach(var sp in new[]{("Ash",new Color(1.0f,0.95f,0.60f)),("Birch",new Color(1.1f,0.97f,0.50f)),("Chestnut",new Color(1.0f,0.78f,0.42f))})
+        foreach(var sp in new[]{("Ash",new Color(1.2f,1.0f,0.5f),new Color(1.8f,1.05f,0.25f)),("Birch",new Color(1.4f,1.05f,0.35f),new Color(1.95f,1.05f,0.18f)),("Chestnut",new Color(1.3f,0.9f,0.35f),new Color(1.7f,0.72f,0.25f))})
             foreach(var guid in AssetDatabase.FindAssets("t:Material",new[]{"Assets/Realistic Tree/Source/Materials/URP/Leaves/"+sp.Item1})){
                 var m=AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid)); if(!m) continue;
-                sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,colorProp="Color_118e71b9c10c4eed91eea60a3ba568b1",texProp="Texture2D_bfb8accc76d9413bad4df77aa898cfaf",cutProp="Vector1_7c4b0ab460c949e098609f36717c4248",autumnTint=sp.Item2}); }
+                sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,colorProp="Color_118e71b9c10c4eed91eea60a3ba568b1",texProp="Texture2D_bfb8accc76d9413bad4df77aa898cfaf",cutProp="Vector1_7c4b0ab460c949e098609f36717c4248",autumnTint=sp.Item2,autumnTint2=sp.Item3}); }
         // Ultimate Nature Starter adapter: classify its foliage materials once the package is imported (vendor files stay local)
         foreach(var guid in AssetDatabase.FindAssets("t:Material",new[]{"Assets"})){ var p=AssetDatabase.GUIDToAssetPath(guid); var pl=p.ToLower();
             if(!(pl.Contains("ultimate nature")||pl.Contains("ultimatenature")||pl.Contains("/uns")||pl.Contains("innerverse"))) continue;
             var n=System.IO.Path.GetFileNameWithoutExtension(pl); bool leafy=n.Contains("leaf")||n.Contains("leaves")||n.Contains("foliage")||n.Contains("bush")||n.Contains("branch")||n.Contains("grass")||n.Contains("flower");
             if(!leafy) continue; bool ever=n.Contains("spruce")||n.Contains("pine")||n.Contains("fir")||n.Contains("conifer")||n.Contains("grass");
             sea.foliage.Add(new ValVertSeasons.Foliage{mat=AssetDatabase.LoadAssetAtPath<Material>(p),evergreen=ever}); Debug.Log("[VV] UNS foliage adapter: "+p+(ever?" (evergreen)":" (deciduous)")); }
-        sea.overlays.Add(new ValVertSeasons.Overlay{mat=Mt("asphalt_leaves"),baseTex=Tx(G+"asphalt_ww_diff.jpg"),baseNor=Tx(G+"asphalt_ww_nor.jpg"),litterTex=Tx(GEN+"asphalt_leaves.png"),litterNor=Tx(G+"asphalt_02_nor.jpg")});
+        System.Func<string,Texture[]> steps=nm=>Enumerable.Range(0,5).Select(k=>(Texture)Tx(GEN+"litter/"+nm+"_litter_"+k+".jpg")).ToArray();
+        sea.forestSteps=steps("forest");
+        sea.overlays.Add(new ValVertSeasons.Overlay{steps=steps("asph"),mat=Mt("asphalt_leaves"),baseTex=Tx(G+"asphalt_ww_diff.jpg"),baseNor=Tx(G+"asphalt_ww_nor.jpg"),litterTex=Tx(GEN+"asphalt_leaves.png"),litterNor=Tx(G+"asphalt_02_nor.jpg")});
         sea.overlays.Add(new ValVertSeasons.Overlay{mat=Mt("corr_leaves"),baseTex=Tx(GEN+"corrugated_iron_02_diff_1k.jpg"),litterTex=Tx(GEN+"corrugated_leaves.png")});
         sea.forestLayer=AssetDatabase.LoadAssetAtPath<TerrainLayer>(G+"forest_leaves_02.terrainlayer");
         sea.forestLitterTex=Tx(G+"forest_leaves_02_diff.jpg"); sea.forestLitterNor=Tx(G+"forest_leaves_02_nor.jpg"); sea.forestBaseTex=Tx(P6+"fg02_diff.jpg"); sea.forestBaseNor=Tx(P6+"fg02_nor.jpg");
         foreach(var n in new[]{"asphalt_road","road","parking_lot","asphalt_leaves","leafground","forest_fg02","stair_earth","path_concrete"}){ var m=Mt(n); if(m) sea.wetSurfaces.Add(new ValVertSeasons.Wet{mat=m}); }
         foreach(var f in sea.foliage) if(f.mat){ f.hasRest=true; if(prevRest.TryGetValue(f.mat,out var pr)){ f.restColor=pr.Item1; f.restCut=pr.Item2; continue; } f.restColor=f.mat.HasProperty(f.colorProp)?f.mat.GetColor(f.colorProp):Color.white; f.restCut=f.mat.HasProperty(f.cutProp)?f.mat.GetFloat(f.cutProp):0.45f; if(f.colorProp=="_BaseColor"&&!f.mat.name.StartsWith("UNS")){ f.restColor=Color.white; f.restCut=0.45f; } }
         clk.month=10; clk.day=20; clk.hour=11f; clk.timeScale=60f;   // default: autumn 2010, late morning (reference photos)
+        ValVertWeatherWire.Wire(go);
         sl.Collect(); Debug.Log("[VV] environment wired: foliage "+sea.foliage.Count+" overlays "+sea.overlays.Count+" wet "+sea.wetSurfaces.Count);
         return go;
     }
@@ -96,5 +99,56 @@ public static class ValVertEnvWire {
         clk.Set(10,20,11f); sea.Tick(); sl.viewer=null; sl.Tick(); Object.DestroyImmediate(cam.gameObject);
         UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
         Debug.Log("[VV] ENVTEST DONE");
+    }
+}
+
+// ---- Weather wiring: snow step textures (CPU blend, cached in Assets/ValVert/Gen/snow), particle materials ----
+public static class ValVertWeatherWire {
+    const string SN="Assets/ValVert/Gen/snow/";
+    static Texture2D snowSrc;
+    static Texture2D Load(string p,int max){ var t=new Texture2D(2,2,TextureFormat.RGBA32,false); t.LoadImage(System.IO.File.ReadAllBytes(p)); if(t.width>max){ var rt=RenderTexture.GetTemporary(max,max*t.height/t.width); Graphics.Blit(t,rt); var r=new Texture2D(rt.width,rt.height,TextureFormat.RGBA32,false); RenderTexture.active=rt; r.ReadPixels(new Rect(0,0,rt.width,rt.height),0,0); r.Apply(); RenderTexture.active=null; RenderTexture.ReleaseTemporary(rt); Object.DestroyImmediate(t); t=r; } return t; }
+    // returns 5 textures: [0]=original, [1..4]=25/50/75/100 % snow
+    public static Texture[] Steps(Texture src,bool slush=false){
+        if(!src) return null; var sp=AssetDatabase.GetAssetPath(src); if(string.IsNullOrEmpty(sp)||!System.IO.File.Exists(sp)) return null;
+        System.IO.Directory.CreateDirectory(SN); string key=System.IO.Path.GetFileNameWithoutExtension(sp)+(slush?"_slush":"");
+        var outp=new string[5]; outp[0]=sp; bool need=false; for(int k=1;k<5;k++){ outp[k]=SN+key+"_s"+k+".jpg"; if(!System.IO.File.Exists(outp[k])) need=true; }
+        if(need){
+            var b=Load(sp,1024); if(!snowSrc) snowSrc=Load("Assets/ValVert/Ground/cc0/Snow006_col.jpg",1024);
+            int w=b.width,h=b.height; var bp=b.GetPixels(); var res=new Color[w*h];
+            float ox=Mathf.Abs(key.GetHashCode()%97); var spx=snowSrc.GetPixels(); int sw=snowSrc.width, shh=snowSrc.height;
+            for(int k=1;k<5;k++){ float cov=k/4f; float thr=1f-cov;
+                for(int y=0;y<h;y++)for(int x=0;x<w;x++){
+                    float n=0.65f*Mathf.PerlinNoise(ox+x*6f/w,y*6f/h)+0.35f*Mathf.PerlinNoise(ox+x*40f/w,y*40f/h);
+                    float a=k==4?1f:Mathf.Clamp01((n-thr)*10f+0.5f); if(slush) a*=0.85f;
+                    var sc=spx[(y*shh/h)*sw+(x*sw/w)]; if(slush) sc=Color.Lerp(sc*0.72f,bp[y*w+x],0.25f);
+                    res[y*w+x]=Color.Lerp(bp[y*w+x],sc,a); }
+                var o=new Texture2D(w,h,TextureFormat.RGB24,false); o.SetPixels(res); o.Apply(); System.IO.File.WriteAllBytes(outp[k],o.EncodeToJPG(85)); Object.DestroyImmediate(o); }
+            Object.DestroyImmediate(b); AssetDatabase.Refresh(); }
+        return outp.Select(p=>(Texture)AssetDatabase.LoadAssetAtPath<Texture2D>(p)).ToArray();
+    }
+    static Material PMat(string n,bool rain){
+        string p="Assets/ValVert/Mats/"+n+".mat"; var m=AssetDatabase.LoadAssetAtPath<Material>(p);
+        if(!m){ m=new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit")); AssetDatabase.CreateAsset(m,p); }
+        string tp="Assets/ValVert/Gen/"+n+"_tex.png";
+        if(!System.IO.File.Exists(tp)){ var t=new Texture2D(64,64,TextureFormat.RGBA32,false); for(int y=0;y<64;y++)for(int x=0;x<64;x++){ float dx=(x-31.5f)/32f, dy=(y-31.5f)/32f; float a=rain?Mathf.Clamp01(1f-Mathf.Abs(dx)*3f)*Mathf.Clamp01(1f-Mathf.Abs(dy)):Mathf.Clamp01(1f-Mathf.Sqrt(dx*dx+dy*dy)); t.SetPixel(x,y,new Color(1,1,1,a*a)); } t.Apply(); System.IO.File.WriteAllBytes(tp,t.EncodeToPNG()); AssetDatabase.ImportAsset(tp); var ti=(TextureImporter)AssetImporter.GetAtPath(tp); ti.alphaIsTransparency=true; ti.SaveAndReimport(); }
+        m.SetTexture("_BaseMap",AssetDatabase.LoadAssetAtPath<Texture2D>(tp)); m.SetFloat("_Surface",1); m.SetFloat("_Blend",0);
+        m.SetFloat("_SrcBlend",(float)UnityEngine.Rendering.BlendMode.SrcAlpha); m.SetFloat("_DstBlend",(float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha); m.SetFloat("_ZWrite",0);
+        m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); m.renderQueue=3000; m.SetColor("_BaseColor",Color.white); EditorUtility.SetDirty(m); return m; }
+    public static void Wire(GameObject go){
+        var w=go.GetComponent<ValVertWeather>()??go.AddComponent<ValVertWeather>(); w.snowMats.Clear(); w.snowLayers.Clear(); w.snowTints.Clear();
+        w.rainMat=PMat("vv_rain",true); w.snowMat=PMat("vv_snow",false);
+        string M="Assets/ValVert/Mats/";
+        void Mat(string n,float f,bool seasonal=false,bool slush=false){ var m=AssetDatabase.LoadAssetAtPath<Material>(M+n+".mat"); if(!m||!m.HasProperty("_BaseMap")) return; var st=Steps(m.GetTexture("_BaseMap"),slush); if(st!=null) w.snowMats.Add(new ValVertWeather.SnowTex{mat=m,steps=st,factor=f,seasonal=seasonal}); }
+        foreach(var n in new[]{"leafground","forest_fg02","stair_earth","bed_soil","path_dirt","school_yard","roof","roof_flat","roof_gravel","roof_gravel2","roof_gravel3","roof_tiles_red","roof_terracotta","roof_brown","roof_slate","roof_gym"}) Mat(n,1f);
+        Mat("path_concrete",0.8f); Mat("kerb",0.7f);
+        foreach(var n in new[]{"asphalt_road","road","parking_lot"}) Mat(n,0.5f,false,true);
+        Mat("asphalt_leaves",0.5f,true,true);
+        foreach(var t in Terrain.activeTerrains) foreach(var l in t.terrainData.terrainLayers){ if(!l||w.snowLayers.Exists(x=>x.layer==l)) continue;
+            bool asph=l.name.Contains("asphalt"); bool forest=l.name.Contains("forest");
+            var src=forest?AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/ValVert/Veg/pilot6/fg02_diff.jpg"):l.diffuseTexture;
+            var st=Steps(src,asph); if(st!=null) w.snowLayers.Add(new ValVertWeather.SnowLayer{layer=l,steps=st,factor=asph?0.5f:1f}); }
+        foreach(var (n,a) in new[]{("UNS_Spruce_Tree_Branch",0.8f),("UNS_Bush_Leaves",0.6f),("laurel_leaves_acg",0.5f),("shrub_02_green",0.55f),("fern_02",0.6f)}){
+            var guid=AssetDatabase.FindAssets(n+" t:Material").FirstOrDefault(); if(guid==null) continue; var m=AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid)); if(m) w.snowTints.Add(new ValVertWeather.SnowTint{mat=m,amount=a}); }
+        Debug.Log($"[VV] weather wired: snowMats {w.snowMats.Count} snowLayers {w.snowLayers.Count} tints {w.snowTints.Count}");
     }
 }
