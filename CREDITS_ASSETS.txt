@@ -82,3 +82,5 @@ Derived textures cladding_light_diff.png / gravel_grey_diff.png made from Poly H
 - Map data: OpenStreetMap contributors (ODbL, https://www.openstreetmap.org/copyright); elevation: IGN RGE ALTI (Licence Ouverte Etalab 2.0)
 - Asphalt textures asphalt_ww (diffuse/normal/smoothness) and parking-bay tile (parking.png, parking_nor, parking_ms): procedural, own work (Tools/generators/asphalt_tex.py), CC0 1.0
 - Cars v2 (clio2, p206, megane2, picasso, kangoo, twingo1 LOD0/LOD1, plates): procedural, own work (Tools/generators/gen_car2.py), CC0 1.0. Generic shapes inspired by 2000s French compacts; no manufacturer meshes, logos or trademarks.
+- [pilot6] "4k Photogrammetric Forest Ground 02" by Yughues (Nobiax), OpenGameArt, CC0 1.0 - https://opengameart.org/content/4k-photogrammetric-forest-ground-02 (downscaled to 2K: fg02_diff/fg02_nor) - used for: woodland bank + planted beds behind #9-11-13 (pilot zone only)
+- [pilot6] ambientCG "Leaf Set 022" (scanned leaves, colour/opacity/normal), CC0 1.0 - https://ambientcg.com/view?id=LeafSet022 , licence https://ambientcg.com/license - recomposed and darkened into laurel cluster cards (laurel_acg_leaves/laurel_acg_nor)

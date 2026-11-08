@@ -113,6 +113,7 @@ public static class ValVertWoods {
             {"asphalt_leaves",M("asphalt_leaves",ValVertDress.Tex(GEN+"asphalt_leaves.png"),ValVertDress.Tex(G+"asphalt_02_nor.jpg",true),new Color(1f,1f,1f),0.12f)},
             {"stair_earth",M("stair_earth",ValVertDress.Tex(G+"forest_leaves_02_diff.jpg"),ValVertDress.Tex(G+"forest_leaves_02_nor.jpg",true),new Color(2.1f,1.7f,1.25f),0.05f)},
             {"sign_blue_bay",M("sign_blue_bay",null,null,new Color(.08f,.3f,.75f),0.2f)},
+            {"forest_fg02",M("forest_fg02",ValVertDress.Tex("Assets/ValVert/Veg/pilot6/fg02_diff.jpg"),ValVertDress.Tex("Assets/ValVert/Veg/pilot6/fg02_nor.jpg",true),Color.white,0.1f)},   // pilot6: Yughues CC0 forest ground, #9 bank + beds only
             {"bed_soil",M("bed_soil",ValVertDress.Tex(G+"stony_dirt_path_diff.jpg"),null,new Color(.55f,.45f,.38f),0.05f)},
             {"glass_green",M("glass_green",null,null,new Color(.42f,.62f,.45f),0.8f,0.2f)},
             {"door_maroon",M("door_maroon",ValVertDress.Tex(GEN+"corrugated_iron_02_diff_1k.jpg"),null,new Color(.45f,.16f,.17f),0.3f)},

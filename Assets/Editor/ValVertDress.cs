@@ -63,7 +63,7 @@ public static class ValVertDress {
         var shA=Mat("shrub_02_autumnA",Tex(T+"shrub_02_leaves_autumnA.png"),null,true,Color.white); var shG=Mat("shrub_02_green",Tex(T+"shrub_02_leaves_green.png"),null,true,Color.white);
         var fern=Mat("fern_02",Tex(T+"fern_02_leaves_green.png"),null,true,new Color(.85f,.8f,.6f));
         var grass=Mat("grass_medium_01",Tex(T+"grass_medium_01_leaves_green.png"),null,true,new Color(.85f,.82f,.65f));
-        var small=new List<GameObject>{ Simple("shrub_02__a",shA,"shrub_a_autumn"), Simple("shrub_02__c",shG,"shrub_c_green"), Simple("fern_02__b",fern,"fern_b"), Simple("fern_02__c",fern,"fern_c"), Simple("laurel_cc0",Mat("laurel_leaves",Tex(T+"laurel_leaves.png"),null,true,Color.white,0.5f),"laurel_cc0") };
+        var small=new List<GameObject>{ Simple("shrub_02__a",shA,"shrub_a_autumn"), Simple("shrub_02__c",shG,"shrub_c_green"), Simple("fern_02__b",fern,"fern_b"), Simple("fern_02__c",fern,"fern_c"), Simple("laurel_cc0",Mat("laurel_leaves_acg",Tex("Assets/ValVert/Veg/pilot6/laurel_acg_leaves.png"),Tex("Assets/ValVert/Veg/pilot6/laurel_acg_nor.png",true),true,Color.white,0.55f),"laurel_cc0") };
         var protos=trees.Concat(small).ToList();
         td.treePrototypes=protos.Select(p=>new TreePrototype{prefab=p}).ToArray();
         var fm=Mask("canopy_orig.png"); var ex=Mask("veg_excl.png"); var me=Mask("veg_meadow.png");

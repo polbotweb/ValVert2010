@@ -87,11 +87,13 @@ public static class ValVertSetup {
           sunL.intensity=0.35f; sunL.shadows=LightShadows.Soft; sunL.shadowStrength=0.35f; sunL.color=new Color(.92f,.94f,.97f);
           RenderSettings.skybox=ValVertDress.OvercastSky; oc.clearFlags=CameraClearFlags.Skybox;
           RenderSettings.ambientMode=UnityEngine.Rendering.AmbientMode.Skybox; RenderSettings.ambientIntensity=1.3f; DynamicGI.UpdateEnvironment(); foreach(var rp in ValVertDress.Probes) if(rp) rp.RenderProbe(); RenderSettings.fogColor=new Color(.80f,.81f,.82f); RenderSettings.fogDensity=0.004f;
+          ValVertSeason.Apply(ValVertSeason.SelSeason,ValVertSeason.SelWeather);
           shF("cmp9_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f);
           shF("cmp10_street_cars.png",new Vector3(470.5f,0,40.0f),new Vector3(0.25f,-0.08f,1f),1.6f);
           shF("cmp10_cars_close.png",new Vector3(483.0f,0,56.0f),new Vector3(-0.8f,-0.25f,0.3f),1.6f);
           shF("cmp10_asphalt_close.png",new Vector3(476.0f,0,46.0f),new Vector3(0.2f,-0.55f,1f),1.5f);
           shF("cmp11_car_detail.png",new Vector3(475.0f,0,48.0f),new Vector3(0.55f,-0.12f,0.8f),1.3f);
+          shF("cmp12_pilot_ground.png",new Vector3(349.0f,0,134.6f),new Vector3(0.1f,-0.9f,0.45f),1.5f);
           shF("cmp9_facade.png",new Vector3(363.6f,0,141.5f),new Vector3(1f,-0.08f,0.05f),4.6f);
           shF("cmp9_window_road.png",new Vector3(373.2f,0,168.9f),new Vector3(-0.05f,-0.22f,1f),9.0f);   // #9 (OSM 62591705) north-facade upper window -> access road 1378070581
           shF("cmp9_access_road.png",new Vector3(371.0f,0,180.5f),new Vector3(-0.03f,-0.12f,-1f),1.7f);   // from the Rue du Val Vert junction down the access road toward #9-11-13
@@ -100,6 +102,14 @@ public static class ValVertSetup {
           shF("cmp9_orme.png",new Vector3(338.3f,0,218.8f),new Vector3(0.12f,0.0f,-1f),1.6f);
           shF("cmp9_alley_above.png",new Vector3(372.3f,0,127.3f),new Vector3(-0.12f,-0.6f,1f),10f);
           shF("cmp9_stepped.png",new Vector3(378f,0,115.3f),new Vector3(0.1f,-0.42f,-1f),17f);
+          { // SEASON comparison: same cameras rendered in summer, then the selected season is applied for the saved scene
+            ValVertSeason.Apply(ValVertSeason.Season.Summer,ValVertSeason.Weather.Dry);
+            shF("cmp13_summer_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f);
+            shF("cmp13_summer_alley_below.png",new Vector3(369.9f,0,128.0f),new Vector3(0f,0.04f,1f),1.6f);
+            shF("cmp13_summer_ground.png",new Vector3(349.0f,0,134.6f),new Vector3(0.1f,-0.9f,0.45f),1.5f);
+            shF("cmp13_summer_stairs_top.png",new Vector3(349.0f,0,134.6f),new Vector3(0.35f,-0.12f,1f),1.7f);
+            ValVertSeason.Apply(ValVertSeason.SelSeason,ValVertSeason.SelWeather);
+            shF("cmp13_autumn_ground.png",new Vector3(349.0f,0,134.6f),new Vector3(0.1f,-0.9f,0.45f),1.5f); }
           sunL.intensity=si; sunL.shadows=ssh; sunL.shadowStrength=1f; sunL.color=sc; RenderSettings.skybox=sky0; RenderSettings.ambientMode=am0; RenderSettings.ambientLight=ac0; RenderSettings.ambientIntensity=ai0; oc.clearFlags=cf0; oc.backgroundColor=bg0; RenderSettings.fogColor=fc0; RenderSettings.fogDensity=fd0; DynamicGI.UpdateEnvironment(); foreach(var rp in ValVertDress.Probes) if(rp) rp.RenderProbe(); }
         shH("v3_grand_frais.png",new Vector3(452f,0,108f),new Vector3(0f,0.08f,1f),1.7f); sh("v3_boulangerie.png",new Vector3(249.0f,0,313.4f),new Vector3(-0.88f,0.1f,0.47f)); sh("v3_assedic.png",new Vector3(262.4f,0,269.6f),new Vector3(0.58f,0.1f,-0.81f)); shH("v3_assedic_y.png",new Vector3(222f,0,300f),new Vector3(0.47f,-0.40f,-0.79f),30f); shH("v3_gf_parking_lower.png",new Vector3(450f,0,112f),new Vector3(0.83f,0.02f,0.55f),1.6f); shH("v3_gf_parking_deck.png",new Vector3(408f,0,116.5f),new Vector3(1f,-0.05f,0.02f),1.7f); sh("v3_maison_orme.png",new Vector3(346f,0,213f),new Vector3(-0.05f,0.1f,-1f)); sh("v3_168_binstore.png",new Vector3(368.2f,0,126f),new Vector3(-0.42f,0.12f,0.9f)); sh("v3_168_logstairs.png",new Vector3(353.5f,0,145.2f),new Vector3(0.95f,-0.12f,-0.15f)); shH("v3_168_ruelle_haut.png",new Vector3(371.5f,0,121f),new Vector3(-0.05f,-0.45f,1f),10f); shH("v3_stepped_from168.png",new Vector3(378f,0,115.3f),new Vector3(-0.1f,-0.4f,-1f),17f); sh("v3_orme_from_path.png",new Vector3(338f,0,222f),new Vector3(0.05f,0.05f,-1f));
         sh("v3_aldi.png",new Vector3(488f,0,58f),new Vector3(-1f,0.06f,0.15f));
