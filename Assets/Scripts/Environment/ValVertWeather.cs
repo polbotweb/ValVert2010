@@ -21,6 +21,88 @@ public class ValVertWeather : MonoBehaviour
     public List<SnowTex> snowMats = new List<SnowTex>();
     public List<SnowLayer> snowLayers = new List<SnowLayer>();
     public List<SnowTint> snowTints = new List<SnowTint>();
+    // snow shells: copies of the upward-facing triangles of bark / evergreen / bush meshes, rendered with an alpha-clipped snow
+    // material whose cutoff follows SnowCover (progressive accumulation only on surfaces facing the sky)
+    [Serializable] public class ShellSrc { public Material src; public Material snow; public float minUp = 0.3f; public bool leaf; public float offset = 0.015f; }
+    public List<ShellSrc> shellSrcs = new List<ShellSrc>();
+    [NonSerialized] List<Renderer> shells = new List<Renderer>(); [NonSerialized] List<(LODGroup, LOD[])> lodBackup = new List<(LODGroup, LOD[])>(); [NonSerialized] float shellCover = -1f;
+    public int ShellCount => shells.Count;
+    [Serializable] public class TreeVariant { public GameObject orig, snow; }
+    public List<TreeVariant> treeVariants = new List<TreeVariant>();   // built by ValVertWeatherWire (prefab assets in Assets/ValVert/Gen/snowtrees, local-only)
+    [NonSerialized] List<(TerrainData, TreePrototype[], TreePrototype[])> treeSwap = new List<(TerrainData, TreePrototype[], TreePrototype[])>(); [NonSerialized] List<GameObject> variants = new List<GameObject>(); [NonSerialized] bool treesSnowy;
+    public void BuildShells()
+    {
+        ClearShells();
+        var map = new Dictionary<Material, ShellSrc>(); foreach (var s in shellSrcs) if (s.src && s.snow) map[s.src] = s;
+        var cache = new Dictionary<(Mesh, int, Vector3Int), Mesh>();
+        // scene objects
+        foreach (var lg in FindObjectsByType<LODGroup>(FindObjectsSortMode.None)) lodBackup.Add((lg, lg.GetLODs()));
+        AddShells(FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None), FindObjectsByType<LODGroup>(FindObjectsSortMode.None), map, cache, shells);
+        // terrain trees: prefab variants carrying the shells (built in the editor), swapped in while snow lies
+        var vmap = new Dictionary<GameObject, GameObject>(); foreach (var tv in treeVariants) if (tv.orig && tv.snow) vmap[tv.orig] = tv.snow;
+        foreach (var t in Terrain.activeTerrains)
+        {
+            var td = t.terrainData; var orig = td.treePrototypes; var snowy = new TreePrototype[orig.Length]; bool any = false;
+            for (int i = 0; i < orig.Length; i++) { var p = orig[i]; snowy[i] = new TreePrototype { prefab = p.prefab, bendFactor = p.bendFactor, navMeshLod = p.navMeshLod }; if (p.prefab && vmap.TryGetValue(p.prefab, out var v)) { snowy[i].prefab = v; any = true; } }
+            if (any) treeSwap.Add((td, orig, snowy));
+        }
+        shellCover = -1f; treesSnowy = false;
+        Debug.Log($"[VV] snow shells: scene {shells.Count}, tree variants {treeVariants.Count}, terrains {treeSwap.Count}");
+    }
+    public int VariantCount => variants.Count;
+    void Start() { if (Application.isPlaying) BuildShells(); }
+    public static void AddShells(MeshRenderer[] rends, LODGroup[] groups, Dictionary<Material, ShellSrc> map, Dictionary<(Mesh, int, Vector3Int), Mesh> cache, List<Renderer> outList, bool persistent = false)
+    {
+        var lodOf = new Dictionary<Renderer, (LODGroup, int)>();
+        foreach (var lg in groups) { var lods = lg.GetLODs(); for (int i = 0; i < lods.Length; i++) foreach (var r in lods[i].renderers) if (r && !lodOf.ContainsKey(r)) lodOf[r] = (lg, i); }   // outermost group wins (terrain uses the root LODGroup)
+        var add = new Dictionary<LODGroup, List<Renderer>[]>();
+        foreach (var mr in rends)
+        {
+            if (!mr || mr.name == "vv_snowshell") continue;
+            var mf = mr.GetComponent<MeshFilter>(); if (!mf || !mf.sharedMesh) continue; var mats = mr.sharedMaterials;
+            for (int s = 0; s < mats.Length && s < mf.sharedMesh.subMeshCount; s++)
+            {
+                if (!mats[s] || !map.TryGetValue(mats[s], out var src)) continue;
+                var up = mr.transform.InverseTransformDirection(Vector3.up).normalized; var key = (mf.sharedMesh, s, Vector3Int.RoundToInt(up * 20f));
+                if (!cache.TryGetValue(key, out var m)) cache[key] = m = Shell(mf.sharedMesh, s, up, src, mr.transform.lossyScale);
+                if (!m) continue;
+                var go = new GameObject("vv_snowshell") { hideFlags = Application.isPlaying || !persistent ? HideFlags.DontSave : HideFlags.None }; go.transform.SetParent(mr.transform, false); go.layer = mr.gameObject.layer;
+                go.AddComponent<MeshFilter>().sharedMesh = m; var r = go.AddComponent<MeshRenderer>(); r.sharedMaterial = src.snow; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.enabled = false; outList.Add(r);
+                if (lodOf.TryGetValue(mr, out var li)) { if (!add.TryGetValue(li.Item1, out var arr)) { arr = new List<Renderer>[li.Item1.lodCount]; for (int i = 0; i < arr.Length; i++) arr[i] = new List<Renderer>(); add[li.Item1] = arr; } arr[li.Item2].Add(r); }
+            }
+        }
+        foreach (var kv in add) { var lods = kv.Key.GetLODs(); for (int i = 0; i < lods.Length; i++) if (kv.Value[i].Count > 0) { var l = new List<Renderer>(lods[i].renderers); l.AddRange(kv.Value[i]); lods[i].renderers = l.ToArray(); } kv.Key.SetLODs(lods); }
+    }
+    public static Mesh Shell(Mesh src, int sub, Vector3 up, ShellSrc s, Vector3 sc)
+    {
+        var v = src.vertices; var uv = src.uv; var t = src.GetTriangles(sub);
+        var nv = new List<Vector3>(); var nu = new List<Vector2>(); var nt = new List<int>(); var remap = new Dictionary<int, int>();
+        float off = s.offset / Mathf.Max(0.01f, (Mathf.Abs(sc.x) + Mathf.Abs(sc.y) + Mathf.Abs(sc.z)) / 3f);
+        for (int i = 0; i + 2 < t.Length; i += 3)
+        {
+            Vector3 a = v[t[i]], b = v[t[i + 1]], c = v[t[i + 2]]; var n = Vector3.Cross(b - a, c - a); if (n.sqrMagnitude < 1e-14f) continue; n.Normalize();
+            float d = Vector3.Dot(n, up); if (s.leaf) { d = Mathf.Abs(d); uint hh = (uint)i * 2654435761u; hh ^= hh >> 15; float rnd = (hh & 1023) / 1023f; if (d < s.minUp + rnd * 0.5f) continue; }   // foliage: steeper cards keep snow less often
+            else if (d < s.minUp) continue;
+            for (int k = 0; k < 3; k++) { int idx = t[i + k]; if (!remap.TryGetValue(idx, out int j)) { j = nv.Count; remap[idx] = j; nv.Add(v[idx] + up * off); nu.Add(idx < uv.Length ? uv[idx] : Vector2.zero); } nt.Add(j); }
+        }
+        if (nt.Count == 0) return null;
+        var m = new Mesh { name = src.name + "_snow" }; if (nv.Count > 65000) m.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        m.SetVertices(nv); m.SetUVs(0, nu); m.SetTriangles(nt, 0); var nn = new List<Vector3>(nv.Count); for (int i = 0; i < nv.Count; i++) nn.Add(up); m.SetNormals(nn); m.RecalculateBounds(); return m;
+    }
+    public void ClearShells()
+    {
+        foreach (var (td, orig, _) in treeSwap) if (td && treesSnowy) { td.treePrototypes = orig; td.RefreshPrototypes(); } treeSwap.Clear(); treesSnowy = false;
+        foreach (var v in variants) if (v) DestroyImmediate(v); variants.Clear();
+        foreach (var (lg, lods) in lodBackup) if (lg) lg.SetLODs(lods); lodBackup.Clear();
+        foreach (var r in shells) if (r) { var g = r.gameObject; if (Application.isPlaying) Destroy(g); else DestroyImmediate(g); } shells.Clear();
+    }
+    void ApplyShells()
+    {
+        if ((shells.Count == 0 && treeSwap.Count == 0) || Mathf.Abs(SnowCover - shellCover) < 0.01f) return; shellCover = SnowCover;
+        bool on = SnowCover > 0.03f; foreach (var r in shells) if (r) r.enabled = on;
+        if (on != treesSnowy) { foreach (var (td, orig, snowy) in treeSwap) if (td) { td.treePrototypes = on ? snowy : orig; td.RefreshPrototypes(); } treesSnowy = on; }
+        foreach (var s in shellSrcs) if (s.snow) s.snow.SetFloat("_Cutoff", Mathf.Lerp(0.98f, s.leaf ? 0.1f : 0.16f, Mathf.Sqrt(Mathf.Clamp01(SnowCover))));
+    }
     public Material rainMat, snowMat;
 
     // current state (0..1)
@@ -64,7 +146,7 @@ public class ValVertWeather : MonoBehaviour
         cloud = k == Kind.Clear ? 0.15f : k == Kind.Overcast ? 0.8f : k == Kind.Fog ? 0.9f : 1f;
         rain = k == Kind.Rain ? 0.5f + 0.5f * inten : k == Kind.Drizzle ? 0.2f : 0f;
         snow = k == Kind.Snow ? 0.4f + 0.6f * inten : 0f;
-        fog = k == Kind.Fog ? 1f : k == Kind.Snow ? 0.45f : k == Kind.Rain ? 0.3f : k == Kind.Drizzle ? 0.35f : k == Kind.Overcast ? 0.1f : 0f;
+        fog = k == Kind.Fog ? 1f : k == Kind.Snow ? 0.45f : k == Kind.Rain ? 0.15f : k == Kind.Drizzle ? 0.25f : k == Kind.Overcast ? 0.1f : 0f;
     }
 
     // integrate state over game time (hours), smooth transitions
@@ -130,7 +212,7 @@ public class ValVertWeather : MonoBehaviour
             int i = StepIndex(SnowCover * l.factor, l.steps.Length);
             var t = i == 0 ? null : l.steps[i];
             if (t && l.layer.diffuseTexture != t) l.layer.diffuseTexture = (Texture2D)t;
-            else if (!t && sea == null && l.layer.diffuseTexture != l.orig) l.layer.diffuseTexture = (Texture2D)l.orig;
+            else if (!t && l.layer.diffuseTexture != l.orig && Array.IndexOf(l.steps, l.layer.diffuseTexture) > 0) l.layer.diffuseTexture = (Texture2D)l.orig;   // undo only our own snow steps (seasonal litter swaps stay)
         }
         foreach (var s in snowTints)
         {
@@ -138,6 +220,7 @@ public class ValVertWeather : MonoBehaviour
             if (!s.cached) { s.orig = s.mat.GetColor(s.colorProp); s.cached = true; }
             s.mat.SetColor(s.colorProp, Color.Lerp(s.orig, s.snowColor, SnowCover * s.amount));
         }
+        ApplyShells();
         Particles();
     }
 
@@ -146,7 +229,7 @@ public class ValVertWeather : MonoBehaviour
         var cam = viewer ? viewer : (Camera.main ? Camera.main.transform : null);
         if (!rainPS) rainPS = MakePS("vv_rain", rainMat, true);
         if (!snowPS) snowPS = MakePS("vv_snow", snowMat, false);
-        foreach (var (ps, amt, rate) in new[] { (rainPS, Rain, 9000f), (snowPS, Snowfall, 6000f) })
+        foreach (var (ps, amt, rate) in new[] { (rainPS, Rain, 9000f), (snowPS, Snowfall, 14000f) })
         {
             if (!ps) continue;
             if (cam) ps.transform.position = cam.position + Vector3.up * 12f + cam.forward * 6f;
@@ -160,10 +243,10 @@ public class ValVertWeather : MonoBehaviour
         var t = transform.Find(n); var go = t ? t.gameObject : new GameObject(n); go.transform.SetParent(transform, false); go.hideFlags = HideFlags.DontSave;
         var ps = go.GetComponent<ParticleSystem>(); if (!ps) ps = go.AddComponent<ParticleSystem>();
         ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-        var main = ps.main; main.loop = true; main.playOnAwake = false; main.simulationSpace = ParticleSystemSimulationSpace.World; main.maxParticles = rain ? 12000 : 8000;
-        main.startLifetime = rain ? 1.6f : 9f; main.startSpeed = rain ? 9.5f : 1.1f; main.startSize = rain ? 0.03f : 0.06f;
+        var main = ps.main; main.loop = true; main.playOnAwake = false; main.simulationSpace = ParticleSystemSimulationSpace.World; main.maxParticles = rain ? 12000 : 30000;
+        main.startLifetime = rain ? 1.6f : 11f; main.startSpeed = rain ? 9.5f : 1.1f; main.startSize = rain ? 0.03f : new ParticleSystem.MinMaxCurve(0.04f, 0.11f);
         main.startColor = rain ? new Color(.8f, .83f, .88f, .6f) : new Color(1f, 1f, 1f, .95f); main.gravityModifier = rain ? 0.4f : 0.02f;
-        var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(40f, 0.5f, 40f); sh.rotation = new Vector3(90f, 0, 0);
+        var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = rain ? new Vector3(40f, 0.5f, 40f) : new Vector3(30f, 0.5f, 30f); sh.rotation = new Vector3(90f, 0, 0);
         var em = ps.emission; em.rateOverTime = 0;
         if (!rain) { var no = ps.noise; no.enabled = true; no.strength = 0.6f; no.frequency = 0.3f; }
         var r = go.GetComponent<ParticleSystemRenderer>(); r.sharedMaterial = m;
@@ -176,11 +259,12 @@ public class ValVertWeather : MonoBehaviour
     public void Prewarm(float seconds = 4f)
     {
         Particles();
-        foreach (var ps in new[] { rainPS, snowPS }) { if (!ps) continue; ps.Clear(true); if (ps.emission.rateOverTime.constant > 0) ps.Simulate(seconds, true, true); }
+        foreach (var ps in new[] { rainPS, snowPS }) { if (!ps) continue; ps.Clear(true); if (ps.emission.rateOverTime.constant > 0) ps.Simulate(ps == snowPS ? Mathf.Max(seconds, 12f) : seconds, true, true); }
     }
 
     void OnDisable()
     {
+        ClearShells();
         foreach (var s in snowMats) if (s.mat && s.orig) s.mat.SetTexture(s.texProp, s.orig);
         foreach (var l in snowLayers) if (l.layer && l.orig) l.layer.diffuseTexture = (Texture2D)l.orig;
         foreach (var s in snowTints) if (s.mat && s.cached) s.mat.SetColor(s.colorProp, s.orig);

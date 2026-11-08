@@ -26,6 +26,7 @@ public class ValVertClock : MonoBehaviour
     public Light sun;          // directional
     public Light moon;         // directional, created if missing
     public Material daySkybox; // existing HDRI/procedural sky
+    public Material overcastSkybox; // grey cloud-deck panorama used when the sky is fully overcast with precipitation/fog
     public Color nightAmbient = new Color(0.030f, 0.040f, 0.070f);   // starlight/airglow + urban skyglow (Annecy basin)
     public Color dayAmbient = new Color(0.58f, 0.57f, 0.54f);   // neutral-warm (removed blue cast)
     public float sunMaxIntensity = 1.25f, moonIntensity = 0.12f;
@@ -166,7 +167,14 @@ public class ValVertClock : MonoBehaviour
         RenderSettings.fogColor = Color.Lerp(new Color(.03f, .035f, .045f), Color.Lerp(new Color(.72f, .72f, .70f), new Color(.62f, .63f, .64f), cloudCover), Daylight01);
         RenderSettings.fog = true; RenderSettings.fogMode = FogMode.ExponentialSquared;
         RenderSettings.fogDensity = 0.0008f + 0.004f * cloudCover * precip + 0.045f * fogAmount;   // light haze .. valley fog (~100 m visibility)
-        if (RenderSettings.skybox && RenderSettings.skybox.HasProperty("_Exposure"))
+        if (daySkybox && overcastSkybox)
+        {
+            bool oc = cloudCover > 0.88f && (precip > 0.15f || fogAmount > 0.4f);
+            var want = oc ? overcastSkybox : daySkybox;
+            if (RenderSettings.skybox != want) { if (expCached && RenderSettings.skybox == daySkybox) { daySkybox.SetFloat("_Exposure", baseSkyExposure); if (tintCached) daySkybox.SetColor("_Tint", baseTint); } RenderSettings.skybox = want; }
+            if (oc) overcastSkybox.SetFloat("_Exposure", Mathf.Lerp(0.03f, 0.9f, sky));
+        }
+        if (RenderSettings.skybox && RenderSettings.skybox == daySkybox && RenderSettings.skybox.HasProperty("_Exposure"))
         {
             if (!expCached) { baseSkyExposure = RenderSettings.skybox.GetFloat("_Exposure"); expCached = true; }
             // HDRI with baked sun: darken to near-black at night so no daytime sun shows
@@ -179,6 +187,7 @@ public class ValVertClock : MonoBehaviour
 
     void OnDisable()
     {
+        if (daySkybox && RenderSettings.skybox == overcastSkybox) RenderSettings.skybox = daySkybox;
         if (expCached && RenderSettings.skybox && RenderSettings.skybox.HasProperty("_Exposure")) RenderSettings.skybox.SetFloat("_Exposure", baseSkyExposure); if (tintCached && RenderSettings.skybox) RenderSettings.skybox.SetColor("_Tint", baseTint);
         if (Instance == this) Instance = null;
     }

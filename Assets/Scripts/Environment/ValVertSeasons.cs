@@ -19,6 +19,8 @@ public class ValVertSeasons : MonoBehaviour
     public List<Overlay> overlays = new List<Overlay>();
     public TerrainLayer forestLayer; public Texture forestLitterTex, forestLitterNor, forestBaseTex, forestBaseNor; public Texture[] forestSteps;
     public List<Wet> wetSurfaces = new List<Wet>();
+    [Serializable] public class WetLayer { public TerrainLayer layer; public Vector4 restMax = Vector4.one; public float restSmooth; }
+    public List<WetLayer> wetLayers = new List<WetLayer>();   // terrain paths / soil darken when wet (rest values captured at wiring)
     [Range(0, 1)] public float wetness = 0f;
     [Range(0, 1)] public float snowCover = 0f;   // set by ValVertWeather; ground overlays are then owned by the snow steps
     [Tooltip("Override automatic date-driven season (-1 = follow clock).")]
@@ -88,12 +90,18 @@ public class ValVertSeasons : MonoBehaviour
             if (forestSteps != null && forestSteps.Length > 1) t = forestSteps[Mathf.Clamp(Mathf.RoundToInt(Litter * (forestSteps.Length - 1)), 0, forestSteps.Length - 1)];
             if (t && forestLayer.diffuseTexture != t) { forestLayer.diffuseTexture = (Texture2D)t; if (n) forestLayer.normalMapTexture = (Texture2D)n; }
         }
+        foreach (var wl in wetLayers)
+        {
+            if (!wl.layer) continue; float k = Mathf.Lerp(1f, 0.58f, wetness);
+            var mx = new Vector4(wl.restMax.x * k, wl.restMax.y * k, wl.restMax.z * k, wl.restMax.w); if (wl.layer.diffuseRemapMax != mx) wl.layer.diffuseRemapMax = mx;
+            float sm = Mathf.Min(0.5f, wl.restSmooth + 0.2f * wetness); if (Mathf.Abs(wl.layer.smoothness - sm) > 0.005f) wl.layer.smoothness = sm;
+        }
         foreach (var w in wetSurfaces)
         {
             if (!w.mat) continue;
             if (!w.cached) { w.c = w.mat.GetColor("_BaseColor"); w.s = w.mat.GetFloat("_Smoothness"); w.cached = true; }
-            w.mat.SetColor("_BaseColor", w.c * Mathf.Lerp(1f, 0.72f, wetness));
-            w.mat.SetFloat("_Smoothness", Mathf.Min(0.85f, w.s + 0.35f * wetness));   // capped: wet, not mirror
+            w.mat.SetColor("_BaseColor", w.c * Mathf.Lerp(1f, 0.6f, wetness));   // wet = darker albedo
+            w.mat.SetFloat("_Smoothness", Mathf.Min(0.6f, w.s + 0.22f * wetness));   // subtle sheen, no milky grazing-angle glare
         }
     }
 
@@ -103,6 +111,7 @@ public class ValVertSeasons : MonoBehaviour
         if (!cached) return;
         foreach (var f in foliage) if (f.mat) { f.mat.SetColor(f.colorProp, f.baseCol); f.mat.SetFloat(f.cutProp, f.baseCut); if (f.origTex) f.mat.SetTexture(f.texProp, f.origTex); }
         foreach (var o in overlays) if (o.mat) { if (o.o1) o.mat.SetTexture("_BaseMap", o.o1); if (o.o2) o.mat.SetTexture("_BumpMap", o.o2); }
+        foreach (var wl in wetLayers) if (wl.layer) { wl.layer.diffuseRemapMax = wl.restMax; wl.layer.smoothness = wl.restSmooth; }
         foreach (var w in wetSurfaces) if (w.mat && w.cached) { w.mat.SetColor("_BaseColor", w.c); w.mat.SetFloat("_Smoothness", w.s); }
         cached = false;
     }

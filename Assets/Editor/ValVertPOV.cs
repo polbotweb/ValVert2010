@@ -7,7 +7,7 @@ public static class ValVertPOV {
     static void Place(Vector3 p,Vector3 dir){ Terrain terr=Terrain.activeTerrain; foreach(var tt in Terrain.activeTerrains){ var tp=tt.transform.position; var sz=tt.terrainData.size; if(p.x>=tp.x&&p.x<=tp.x+sz.x&&p.z>=tp.z&&p.z<=tp.z+sz.z){ terr=tt; break; } }
         p.y=terr.SampleHeight(p)+terr.transform.position.y+1.7f; cam.transform.position=p; cam.transform.rotation=Quaternion.LookRotation(dir); }
     static void Shot(string n,int mo,int d,float h){
-        clk.Set(mo,d,h); w.Tick(); sea.Tick(); sl.Tick(); w.Prewarm(4f);
+        clk.Set(mo,d,h); w.Tick(); sea.Tick(); clk.Apply(); sl.Tick(); w.Prewarm(4f);
         var rt=new RenderTexture(1600,900,24); cam.targetTexture=rt; cam.Render(); RenderTexture.active=rt; var tx=new Texture2D(1600,900,TextureFormat.RGB24,false); tx.ReadPixels(new Rect(0,0,1600,900),0,0);
         System.IO.File.WriteAllBytes(D+n,tx.EncodeToPNG()); RenderTexture.active=null; cam.targetTexture=null; UnityEngine.Object.DestroyImmediate(rt); UnityEngine.Object.DestroyImmediate(tx);
         int hh=(int)h, mm=(int)Math.Round((h-hh)*60); if(mm==60){hh++;mm=0;}
@@ -17,12 +17,17 @@ public static class ValVertPOV {
         UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/ValVert.unity");
         var go=ValVertEnvWire.Wire(); clk=go.GetComponent<ValVertClock>(); sea=go.GetComponent<ValVertSeasons>(); sl=go.GetComponent<ValVertStreetLights>(); w=go.GetComponent<ValVertWeather>();
         cam=new GameObject("povcam").AddComponent<Camera>(); cam.fieldOfView=65; cam.nearClipPlane=0.1f; sl.viewer=cam.transform; w.viewer=cam.transform;
-        System.IO.Directory.CreateDirectory(D); w.Force(ValVertWeather.Kind.Auto);
+        System.IO.Directory.CreateDirectory(D); w.Force(ValVertWeather.Kind.Auto); w.BuildShells();
         Vector3 P=new Vector3(349.0f,0,134.6f), V=new Vector3(0.35f,0.02f,1f); Place(P,V);
         // winter date with real (simulated) snow on the ground and no snowfall at noon
         int wm=1,wd=20; for(int m=12;m<=14&&wm==1&&wd==20;m++) for(int d=1;d<=28;d++){ int mo=(m-1)%12+1; if(mo==12) continue; clk.Set(mo,d,12.5f); w.Settle(clk.Now); if(w.SnowCover>0.6f&&w.Current!=ValVertWeather.Kind.Snow){ wm=mo; wd=d; break; } }
         bool only=System.Environment.GetEnvironmentVariable("VV_POV_ONLY")=="weather";
-        if(only) Shot("pov_winter_2midday.png",wm,wd,12.75f);
+        if(only){ Shot("_warmup.png",wm,wd,12.75f); Shot("pov_winter_2midday.png",wm,wd,12.75f);
+            Place(new Vector3(350.2f,0,137.5f),new Vector3(0.8f,-0.35f,0.5f)); Shot("dbg_laurel_snow.png",wm,wd,12.75f);
+            Place(new Vector3(349.5f,0,136f),new Vector3(-0.9f,0.1f,0.4f)); Shot("dbg_spruce_snow.png",wm,wd,12.75f);
+            Place(new Vector3(349.5f,0,136f),new Vector3(0.5f,0.6f,0.6f)); Shot("dbg_branches_snow.png",wm,wd,12.75f); Place(P,V); Shot("pov_spring_2midday.png",4,20,13.5f);
+            int cm=0,cd=0; for(int m=12;m<=14&&cm==0;m++) for(int d=1;d<=28;d++){ int mo=(m-1)%12+1; clk.Set(mo,d,12.75f); w.Settle(clk.Now); if(w.SnowCover<0.02f&&w.Current==ValVertWeather.Kind.Clear){ cm=mo; cd=d; break; } }
+            if(cm>0) Shot("extra_winter_clear_nosnow.png",cm,cd,12.75f); }
         if(!only) foreach(var d in new[]{(4,20,"spring"),(7,15,"summer"),(10,20,"autumn"),(wm,wd,"winter")}){
             float rise=6,set=18,noon=12,maxAlt=-90,prev=-90;
             for(float h=0;h<24;h+=1f/12f){ clk.Set(d.Item1,d.Item2,h); float a=clk.SunAltitudeDeg; if(prev<0&&a>=0) rise=h; if(prev>=0&&a<0) set=h; if(a>maxAlt){maxAlt=a;noon=h;} prev=a; }
@@ -36,7 +41,8 @@ public static class ValVertPOV {
         Place(new Vector3(470.5f,0,40.0f),new Vector3(0.25f,-0.08f,1f)); w.Force(ValVertWeather.Kind.Rain); Shot("extra_rain_night_lamps.png",10,20,22.5f);
         w.Force(ValVertWeather.Kind.Clear); Shot("extra_clear_night_lamps.png",10,20,22.5f);
         w.Force(ValVertWeather.Kind.Auto); clk.Set(10,20,11f); w.Tick(); sea.Tick(); sl.viewer=null; w.viewer=null; sl.Tick(); UnityEngine.Object.DestroyImmediate(cam.gameObject);
-        UnityEditor.SceneManagement.EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene()); AssetDatabase.SaveAssets();
+        w.ClearShells();
+        // no save: render-only (avoids persisting runtime weather/season state into assets)
         Debug.Log("[VV] POV DONE");
     }
 }
