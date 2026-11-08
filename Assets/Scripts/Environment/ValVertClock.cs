@@ -55,8 +55,8 @@ public class ValVertClock : MonoBehaviour
         if (!sun) { var g = GameObject.Find("Sun"); if (g) sun = g.GetComponent<Light>(); }
         if (!moon)
         {
-            var g = GameObject.Find("Moon") ?? new GameObject("Moon");
-            moon = g.GetComponent<Light>() ?? g.AddComponent<Light>();
+            var g = GameObject.Find("Moon"); if (!g) g = new GameObject("Moon");
+            moon = g.GetComponent<Light>(); if (!moon) moon = g.AddComponent<Light>();
             moon.type = LightType.Directional; moon.shadows = LightShadows.Soft; moon.color = new Color(.62f, .70f, .90f);
         }
         if (!daySkybox) daySkybox = RenderSettings.skybox;

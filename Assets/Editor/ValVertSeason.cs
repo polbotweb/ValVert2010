@@ -49,7 +49,7 @@ public static class ValVertEnvWire {
         var sea=go.GetComponent<ValVertSeasons>()??go.AddComponent<ValVertSeasons>();
         var sl=go.GetComponent<ValVertStreetLights>()??go.AddComponent<ValVertStreetLights>();
         sea.foliage.Clear(); sea.overlays.Clear(); sea.wetSurfaces.Clear();
-        foreach(var sp in new[]{"tree_small_02","fir_tree_01"}) foreach(var v in new[]{"autumnA","autumnB","green"}){ var m=Mt(sp+"_leaves_"+v); if(m) sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,greenTex=Tx(T+sp+"_leaves_green.png"),autumnTex=Tx(T+sp+"_leaves_"+v+".png")}); }
+        foreach(var sp in new[]{"tree_small_02","fir_tree_01"}) foreach(var v in new[]{"autumnA","autumnB","green"}){ var m=Mt(sp+"_leaves_"+v); if(m) sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,evergreen=sp=="fir_tree_01",greenTex=Tx(T+sp+"_leaves_green.png"),autumnTex=Tx(T+sp+"_leaves_"+v+".png")}); }
         foreach(var v in new[]{"autumnA","green"}){ var m=Mt("shrub_02_"+v); if(m) sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,greenTex=Tx(T+"shrub_02_leaves_green.png"),autumnTex=Tx(T+"shrub_02_leaves_"+v+".png")}); }
         { var m=Mt("laurel_leaves_acg"); if(m) sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,evergreen=true}); }
         // Ultimate Nature Starter adapter: classify its foliage materials once the package is imported (vendor files stay local)
@@ -73,20 +73,20 @@ public static class ValVertEnvWire {
         var scene=UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/ValVert.unity");
         var go=Wire(); var clk=go.GetComponent<ValVertClock>(); var sea=go.GetComponent<ValVertSeasons>(); var sl=go.GetComponent<ValVertStreetLights>();
         // 1) clock advances: simulate 30 h in 10-min steps, log transitions
-        clk.Set(6,21,0f); float prevAlt=-99; bool lampsOn=false;
+        clk.Set(6,21,0f); float prevAlt=-99; bool lampsOn=clk.SunAltitudeDeg<sl.switchAltitude;
         for(int i=0;i<180;i++){ clk.Advance(1f/6f); clk.Apply(); sl.Tick(); bool on=clk.SunAltitudeDeg<sl.switchAltitude; if(on!=lampsOn){ Debug.Log($"[VV] ENVTEST lamps {(on?"ON":"OFF")} at {clk.Now:yyyy-MM-dd HH:mm} alt={clk.SunAltitudeDeg:F1}"); lampsOn=on; } if(prevAlt<0&&clk.SunAltitudeDeg>=0) Debug.Log($"[VV] ENVTEST sunrise {clk.Now:MM-dd HH:mm} az={clk.SunAzimuthDeg:F0}"); if(prevAlt>=0&&clk.SunAltitudeDeg<0) Debug.Log($"[VV] ENVTEST sunset {clk.Now:MM-dd HH:mm} az={clk.SunAzimuthDeg:F0}"); prevAlt=clk.SunAltitudeDeg; }
         foreach(var d in new[]{(3,20),(6,21),(9,22),(12,21)}){ clk.Set(d.Item1,d.Item2,12.5f); Debug.Log($"[VV] ENVTEST noon {d.Item1:00}-{d.Item2:00} alt={clk.SunAltitudeDeg:F1} utc+{clk.UtcOffset()}"); }
         // 2) renders
-        var cam=new GameObject("envcam").AddComponent<Camera>(); cam.fieldOfView=70; var cams=Camera.allCameras;
+        var cam=new GameObject("envcam").AddComponent<Camera>(); cam.fieldOfView=70; sl.viewer=cam.transform; var cams=Camera.allCameras;
         string D="/workspace/valvert/env_runtime/"; System.IO.Directory.CreateDirectory(D);
         var terr=Terrain.activeTerrain;
-        void Shot(string n,Vector3 p,Vector3 look,float up){ float gy=terr.SampleHeight(p)+terr.transform.position.y; cam.transform.position=new Vector3(p.x,gy+up,p.z); cam.transform.rotation=Quaternion.LookRotation(look);
+        void Shot(string n,Vector3 p,Vector3 look,float up){ foreach(var tt in Terrain.activeTerrains){ var tp=tt.transform.position; var sz=tt.terrainData.size; if(p.x>=tp.x&&p.x<=tp.x+sz.x&&p.z>=tp.z&&p.z<=tp.z+sz.z){ terr=tt; break; } } float gy=terr.SampleHeight(p)+terr.transform.position.y; cam.transform.position=new Vector3(p.x,gy+up,p.z); cam.transform.rotation=Quaternion.LookRotation(look); sl.Tick(); Debug.Log($"[VV] ENVSHOT {n} terr={terr.name} pos={cam.transform.position} rot={cam.transform.eulerAngles} parent={(cam.transform.parent?cam.transform.parent.name:"-")} ortho={cam.orthographic} n={Terrain.activeTerrains.Length}");
             var rt=new RenderTexture(1024,576,24); cam.targetTexture=rt; cam.Render(); RenderTexture.active=rt; var t=new Texture2D(1024,576,TextureFormat.RGB24,false); t.ReadPixels(new Rect(0,0,1024,576),0,0); t.Apply(); System.IO.File.WriteAllBytes(D+n,t.EncodeToPNG()); RenderTexture.active=null; cam.targetTexture=null; Object.DestroyImmediate(rt); Object.DestroyImmediate(t); }
         Vector3 pA=new Vector3(369.9f,0,128.0f), lA=new Vector3(0f,0.04f,1f);       // alley below #9
         Vector3 pS=new Vector3(470.5f,0,40.0f), lS=new Vector3(0.25f,-0.08f,1f);    // street with lamps (Aldi car park)
-        foreach(var h in new[]{(6.5f,"0650"),(12.5f,"1230"),(18.7f,"1842"),(22.5f,"2230")}){ clk.Set(10,20,h.Item1); sl.Tick(); sea.Tick(); Shot("day_"+h.Item2+"_alley.png",pA,lA,1.6f); Shot("day_"+h.Item2+"_street.png",pS,lS,1.6f); Debug.Log($"[VV] ENVTEST render {h.Item2} alt={clk.SunAltitudeDeg:F1} daylight={clk.Daylight01:F2}"); }
+        foreach(var h in new[]{(8.3f,"0818"),(12.5f,"1230"),(18.7f,"1842"),(22.5f,"2230")}){ clk.Set(10,20,h.Item1); sl.Tick(); sea.Tick(); Shot("day_"+h.Item2+"_alley.png",pA,lA,1.6f); Shot("day_"+h.Item2+"_street.png",pS,lS,1.6f); Debug.Log($"[VV] ENVTEST render {h.Item2} alt={clk.SunAltitudeDeg:F1} daylight={clk.Daylight01:F2}"); }
         foreach(var d in new[]{(4,20,"spring"),(7,15,"summer"),(10,25,"autumn"),(1,20,"winter")}){ clk.Set(d.Item1,d.Item2,13f); sea.Tick(); sl.Tick(); Shot("season_"+d.Item3+"_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f); Shot("season_"+d.Item3+"_alley.png",pA,lA,1.6f); Debug.Log($"[VV] ENVTEST season {d.Item3} leafCover={sea.LeafCover:F2} autumn={sea.Autumn:F2} litter={sea.Litter:F2}"); }
-        clk.Set(10,20,11f); sea.Tick(); sl.Tick();
+        clk.Set(10,20,11f); sea.Tick(); sl.viewer=null; sl.Tick(); Object.DestroyImmediate(cam.gameObject);
         UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
         Debug.Log("[VV] ENVTEST DONE");
     }

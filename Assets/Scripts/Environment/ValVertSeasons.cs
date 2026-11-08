@@ -69,9 +69,9 @@ public class ValVertSeasons : MonoBehaviour
             if (tex) f.mat.SetTexture("_BaseMap", tex);
             Color spring = new Color(.95f, 1.05f, .85f);
             float fresh = Mathf.Clamp01(1 - Mathf.Abs(doy - 130) / 30f);          // fresh light green around early May
-            f.mat.SetColor("_BaseColor", Color.Lerp(Color.white, spring, fresh));
+            f.mat.SetColor("_BaseColor", f.baseCol * Color.Lerp(Color.white, spring, fresh));   // keep the material's own tint (UNS leaves are white masks tinted by _BaseColor)
             // canopy thinning via alpha cutoff: 0.45 full .. 0.97 almost bare
-            f.mat.SetFloat("_Cutoff", Mathf.Lerp(0.97f, f.baseCut, LeafCover));
+            f.mat.SetFloat("_Cutoff", Mathf.Lerp(0.995f, Mathf.Min(f.baseCut, 0.45f), LeafCover));
         }
         bool lit = Litter > 0.5f;
         foreach (var o in overlays)

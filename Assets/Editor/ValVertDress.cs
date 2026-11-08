@@ -48,6 +48,13 @@ public static class ValVertDress {
         var lg=root.AddComponent<LODGroup>(); lg.SetLODs(lods.ToArray()); lg.RecalculateBounds();
         float h=baseH(root); var pf=PrefabUtility.SaveAsPrefabAsset(root,"Assets/ValVert/Prefabs/"+root.name+".prefab"); Object.DestroyImmediate(root); L($"tree prefab {pf.name} baseH={h:F2}"); hts[pf.name]=h; return pf; }
     static Dictionary<string,float> hts=new Dictionary<string,float>();
+    // Ultimate Nature Starter (Innerverse Interactive; Asset Store EULA, git-ignored, imported locally by the user). Returns null if not imported.
+    public const string UNSDIR="Assets/InnerverseInteractive/Ultimate Nature \u2013 Starter/Environment/";
+    static GameObject UNS(string rel,string name){ var a=AssetDatabase.LoadAssetAtPath<GameObject>(UNSDIR+rel+".prefab"); if(!a) return null;
+        var root=new GameObject(name); var inst=(GameObject)PrefabUtility.InstantiatePrefab(a); PrefabUtility.UnpackPrefabInstance(inst,PrefabUnpackMode.Completely,InteractionMode.AutomatedAction); inst.transform.SetParent(root.transform,false);
+        foreach(var r in inst.GetComponentsInChildren<Renderer>()) foreach(var m in r.sharedMaterials) if(m&&m.name=="UNS_Bush_Leaves"){ m.SetColor("_BaseColor",new Color(.27f,.37f,.15f)); EditorUtility.SetDirty(m); }   // tone the lime stylised tint down to Seynod hedge green
+        var lg=root.AddComponent<LODGroup>(); lg.SetLODs(new[]{new LOD(0.02f,inst.GetComponentsInChildren<Renderer>())}); lg.RecalculateBounds();
+        float h=baseH(root); var pf=PrefabUtility.SaveAsPrefabAsset(root,"Assets/ValVert/Prefabs/"+name+".prefab"); Object.DestroyImmediate(root); hts[name]=h; L($"UNS prefab {name} h={h:F2}"); return pf; }
     static GameObject Simple(string fbx,Material m,string name){ var inst=(GameObject)Object.Instantiate(Fbx(V+fbx+".fbx")); inst.name=name; Assign(inst,n=>m);
         float h=baseH(inst); var pf=PrefabUtility.SaveAsPrefabAsset(inst,"Assets/ValVert/Prefabs/"+name+".prefab"); Object.DestroyImmediate(inst); hts[name]=h; L($"prefab {name} h={h:F2}"); return pf; }
 
@@ -59,11 +66,11 @@ public static class ValVertDress {
         var itBark=Mat("fir_tree_01_bark",Tex(T+"fir_tree_01_bark_diff_1k.jpg"),Tex(T+"fir_tree_01_bark_nor_gl_1k.jpg",true),false,Color.white);
         var itBr=Mat("island_tree_02_branch",Tex(T+"island_tree_02_branches_diff_1k.jpg"),Tex(T+"island_tree_02_branches_nor_gl_1k.jpg",true),true,Color.white);
         var trees=new List<GameObject>();
-        foreach(var v in new[]{"autumnA","autumnB","green"}){ trees.Add(TreePrefab("tree_small_02",v,tsBark,tsBr)); trees.Add(TreePrefab("fir_tree_01",v,itBark,itBark)); }
+        int vi=0; foreach(var v in new[]{"autumnA","autumnB","green"}){ trees.Add(TreePrefab("tree_small_02",v,tsBark,tsBr)); trees.Add(UNS("Trees/Fir/Prefabs/UNS_Spruce_0"+(vi++%2==0?"1":"2"),"uns_spruce_"+v) ?? TreePrefab("fir_tree_01",v,itBark,itBark)); }
         var shA=Mat("shrub_02_autumnA",Tex(T+"shrub_02_leaves_autumnA.png"),null,true,Color.white); var shG=Mat("shrub_02_green",Tex(T+"shrub_02_leaves_green.png"),null,true,Color.white);
         var fern=Mat("fern_02",Tex(T+"fern_02_leaves_green.png"),null,true,new Color(.85f,.8f,.6f));
         var grass=Mat("grass_medium_01",Tex(T+"grass_medium_01_leaves_green.png"),null,true,new Color(.85f,.82f,.65f));
-        var small=new List<GameObject>{ Simple("shrub_02__a",shA,"shrub_a_autumn"), Simple("shrub_02__c",shG,"shrub_c_green"), Simple("fern_02__b",fern,"fern_b"), Simple("fern_02__c",fern,"fern_c"), Simple("laurel_cc0",Mat("laurel_leaves_acg",Tex("Assets/ValVert/Veg/pilot6/laurel_acg_leaves.png"),Tex("Assets/ValVert/Veg/pilot6/laurel_acg_nor.png",true),true,Color.white,0.55f),"laurel_cc0") };
+        var small=new List<GameObject>{ UNS("Vegetation/Bushes/Prefabs/UNS_Bush","uns_bush_a") ?? Simple("shrub_02__a",shA,"shrub_a_autumn"), UNS("Vegetation/Bushes/Prefabs/UNS_Bush","uns_bush_c") ?? Simple("shrub_02__c",shG,"shrub_c_green"), Simple("fern_02__b",fern,"fern_b"), Simple("fern_02__c",fern,"fern_c"), Simple("laurel_cc0",Mat("laurel_leaves_acg",Tex("Assets/ValVert/Veg/pilot6/laurel_acg_leaves.png"),Tex("Assets/ValVert/Veg/pilot6/laurel_acg_nor.png",true),true,Color.white,0.55f),"laurel_cc0") };
         var protos=trees.Concat(small).ToList();
         td.treePrototypes=protos.Select(p=>new TreePrototype{prefab=p}).ToArray();
         var fm=Mask("canopy_orig.png"); var ex=Mask("veg_excl.png"); var me=Mask("veg_meadow.png");
@@ -72,7 +79,7 @@ public static class ValVertDress {
         System.Func<float,float,bool> bad=(x,z)=> x<-531||x>531||z<-354||z>354|| S(ex,x,z)>0.35f || ValVertWoods.Lab(x,z)!=0 || ValVertWoods.Hidden(new Vector3(x,0,z));
         System.Func<float,float,float,bool> clear=(x,z,rad)=>{ if(bad(x,z)) return false; for(int k=0;k<8;k++){ float a=k*Mathf.PI/4; if(bad(x+Mathf.Cos(a)*rad,z+Mathf.Sin(a)*rad)) return false;} return true; };
         System.Func<float,float,bool> spawnZone=(x,z)=> ValVertWoods.ShotClear(x,z);
-        System.Action<int,float,float,float> add=(pi,x,z,targetH)=>{ if(protos[pi].name.StartsWith("island")) targetH*=0.7f; float s=targetH/hts[protos[pi].name];
+        System.Action<int,float,float,float> add=(pi,x,z,targetH)=>{ if(protos[pi].name.StartsWith("uns_spruce")&&!clear(x,z,3.2f)) pi-=1; if(protos[pi].name.StartsWith("uns_bush")&&!clear(x,z,1.4f)) return;   /* 2.4 m UNS bush must not sit on stairs/paths */   /* wide spruce crown needs clearance (stairs/paths): fall back to the broadleaf of the same variant */ if(protos[pi].name.StartsWith("island")) targetH*=0.7f; float s=targetH/hts[protos[pi].name];
             list.Add(new TreeInstance{prototypeIndex=pi,position=new Vector3((x+532f)/1064f,0,(z+354.646f)/709.293f),heightScale=s,widthScale=s*(0.85f+0.3f*R()),rotation=R()*Mathf.PI*2,color=Color.Lerp(Color.white,new Color(.85f,.9f,.8f),R()),lightmapColor=Color.white});
             Counts[protos[pi].name]=(Counts.TryGetValue(protos[pi].name,out var c)?c:0)+1; };
         int pickVar(){ float r=R(); return r<0.72f?2:(r<0.9f?0:1); }

@@ -58,3 +58,8 @@ crashlytics-build.properties
 /Assets/ValVert/Gen/m_Bld_facade.asset
 /Assets/ValVert/Gen/m_Bld_metal.asset
 /Assets/ValVert/Gen/m_OuterRing.asset
+
+# Unity Asset Store vendor content (Ultimate Nature Starter, Standard Unity Asset Store EULA) - never commit raw files
+Assets/InnerverseInteractive/
+Assets/InnerverseInteractive.meta
+Assets/ValVert/Prefabs/uns_*

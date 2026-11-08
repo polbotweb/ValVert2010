@@ -8,8 +8,9 @@ public class ValVertStreetLights : MonoBehaviour
 {
     public string[] lensMaterialNames = { "lamp_lens", "lamp_head", "car_lamp" };
     public Color lampColor = new Color(1f, .78f, .48f);   // 2010 high-pressure sodium / warm
-    public float emission = 6f, lightIntensity = 3.5f, lightRange = 18f;
-    public int maxRealLights = 24;                        // pooled, nearest to camera, no shadows
+    public float emission = 6f, lightIntensity = 70f, lightRange = 20f;
+    public int maxRealLights = 24;
+    public Transform viewer;   // defaults to Camera.main                        // pooled, nearest to camera, no shadows
     [Tooltip("Sun altitude (deg) below which lamps switch on (dusk) / off (dawn).")]
     public float switchAltitude = -1.5f;
 
@@ -70,7 +71,7 @@ public class ValVertStreetLights : MonoBehaviour
             var l = g.AddComponent<Light>(); l.type = LightType.Point; l.shadows = LightShadows.None; l.color = lampColor; l.range = lightRange; l.renderMode = LightRenderMode.ForcePixel;
             pool.Add(l);
         }
-        var cam = Camera.main ? Camera.main.transform.position : Vector3.zero;
+        var cam = viewer ? viewer.position : (Camera.main ? Camera.main.transform.position : Vector3.zero);
         if (on01 <= 0.01f || lamps.Count == 0) { foreach (var l in pool) l.enabled = false; return; }
         lamps.Sort((a, b) => (a - cam).sqrMagnitude.CompareTo((b - cam).sqrMagnitude));
         for (int i = 0; i < pool.Count; i++)
