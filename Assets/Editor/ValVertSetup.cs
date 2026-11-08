@@ -108,6 +108,11 @@ public static class ValVertSetup {
             shF("cmp13_summer_alley_below.png",new Vector3(369.9f,0,128.0f),new Vector3(0f,0.04f,1f),1.6f);
             shF("cmp13_summer_ground.png",new Vector3(349.0f,0,134.6f),new Vector3(0.1f,-0.9f,0.45f),1.5f);
             shF("cmp13_summer_stairs_top.png",new Vector3(349.0f,0,134.6f),new Vector3(0.35f,-0.12f,1f),1.7f);
+            foreach(var cfg in new[]{("spring",ValVertSeason.Season.Spring,ValVertSeason.Weather.Dry),("winter",ValVertSeason.Season.Winter,ValVertSeason.Weather.Dry),("autumnwet",ValVertSeason.Season.Autumn,ValVertSeason.Weather.Wet)}){
+              ValVertSeason.Apply(cfg.Item2,cfg.Item3);
+              shF("cmp13_"+cfg.Item1+"_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f);
+              shF("cmp13_"+cfg.Item1+"_alley_below.png",new Vector3(369.9f,0,128.0f),new Vector3(0f,0.04f,1f),1.6f);
+              shF("cmp13_"+cfg.Item1+"_stairs_top.png",new Vector3(349.0f,0,134.6f),new Vector3(0.35f,-0.12f,1f),1.7f); }
             ValVertSeason.Apply(ValVertSeason.SelSeason,ValVertSeason.SelWeather);
             shF("cmp13_autumn_ground.png",new Vector3(349.0f,0,134.6f),new Vector3(0.1f,-0.9f,0.45f),1.5f); }
           sunL.intensity=si; sunL.shadows=ssh; sunL.shadowStrength=1f; sunL.color=sc; RenderSettings.skybox=sky0; RenderSettings.ambientMode=am0; RenderSettings.ambientLight=ac0; RenderSettings.ambientIntensity=ai0; oc.clearFlags=cf0; oc.backgroundColor=bg0; RenderSettings.fogColor=fc0; RenderSettings.fogDensity=fd0; DynamicGI.UpdateEnvironment(); foreach(var rp in ValVertDress.Probes) if(rp) rp.RenderProbe(); }
