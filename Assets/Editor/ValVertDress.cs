@@ -110,6 +110,7 @@ public static class ValVertDress {
               if(pz>129.6f&&pz<135.6f&&px>340f) continue; if(px>355.5f&&Mathf.Abs(pz-141.5f)<1.8f) continue; add(10,px,pz,2.2f+R()*1.6f); nb++;
               if(R()<0.12f) { int v_=R()<0.5f?0:2; add(v_*2,px+(px>357f?3.2f:1.2f),pz,10f+R()*6f); nb++; } }
             for(float lx=359.5f;lx<361.3f;lx+=0.8f) for(float lz=122.5f;lz<129.4f;lz+=0.9f){ add(10,lx+(R()-0.5f)*0.5f,lz+(R()-0.5f)*0.5f,2.4f+R()*0.9f); nb++; }   // eye-level laurel/rhododendron mass left of the stair (photo)
+            foreach(var bz in new[]{new[]{119.0f,126.0f},new[]{131.0f,137.0f},new[]{142.0f,153.5f}}) for(int k=0;k<(int)((bz[1]-bz[0])/1.6f);k++){ add(10,371.4f+((k%2)-0.5f)*1.2f,bz[0]+0.8f+k*1.6f,0.9f+R()*0.3f); nb++; }   // bed shrubs (replace former 1.1 m cube "hedge" boxes)
             L("bank168 veg "+nb); }
         td.SetTreeInstances(list.ToArray(),true);
         if(ValVertWoods.East){ var et=ValVertWoods.East.terrainData; et.treePrototypes=td.treePrototypes; var el=new List<TreeInstance>();
