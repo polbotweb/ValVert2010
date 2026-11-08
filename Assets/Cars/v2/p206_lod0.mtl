@@ -1,0 +1,45 @@
+newmtl paint
+Kd 0.5 0.5 0.5
+
+newmtl trim
+Kd 0.5 0.5 0.5
+
+newmtl glass
+Kd 0.5 0.5 0.5
+
+newmtl under
+Kd 0.5 0.5 0.5
+
+newmtl tyre
+Kd 0.5 0.5 0.5
+
+newmtl rim
+Kd 0.5 0.5 0.5
+
+newmtl headlamp
+Kd 0.5 0.5 0.5
+
+newmtl chrome
+Kd 0.5 0.5 0.5
+
+newmtl taillamp
+Kd 0.5 0.5 0.5
+
+newmtl indicator
+Kd 0.5 0.5 0.5
+
+newmtl seam
+Kd 0.5 0.5 0.5
+
+newmtl dirt
+Kd 0.5 0.5 0.5
+
+newmtl bumper
+Kd 0.5 0.5 0.5
+
+newmtl plateF
+Kd 0.5 0.5 0.5
+
+newmtl plateR
+Kd 0.5 0.5 0.5
+

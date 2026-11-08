@@ -98,7 +98,7 @@ def wall_bays(p,g,ytop,kind,tone,rnd,shutters=True):
                 if G168[0] and kind=='apt' and row not in(6,2) and bw>=2.0:   # #168 photos: white render, roller shutters 30-100% down, mid-grey reflective glass, mid-grey spandrel panel
                     row=-1; f=rnd.choice([0.3,0.5,0.7,0.85,1.0,1.0])
                     qq('render_white',0,1,0,1,o_*0.5)
-                    vs=0.84-0.54*f; qq('glass_refl',0.07,0.50,0.30,vs) if vs>0.31 else None; qq('white_trim',0.07,0.50,vs,0.84)
+                    vs=0.84-0.54*f; qq('glass_refl',0.07,0.50,0.30,vs) if vs>0.31 else None; qq('shutter',0.07,0.50,vs,0.84)
                     qq('band_grey',0.55,0.95,0.30,0.84)
                 if NO5[0] and kind=='apt':   # no 5 photo: plain white walls, few recessed vertical window strips
                     qq('render_white',0,1,0,1,o_*0.5)

@@ -74,3 +74,11 @@ Derived textures cladding_light_diff.png / gravel_grey_diff.png made from Poly H
 - tree_small_02 / shrub_02 leaf variants retinted from Poly Haven CC0 textures (yellow-green instead of orange)
 - hatch_clio / hatch_307 / mpv_picasso (procedural car models, self-made by this project, /workspace/cars/gen_car.py) - used for: parked 2000s European cars (replace Kenney car kit)
   License: CC0 1.0 (own work)
+- worn_asphalt (texture, Poly Haven, 2K diffuse/normal/roughness, desaturated) - used for: road & car-park asphalt
+  URL: https://polyhaven.com/a/worn_asphalt
+  License: CC0 1.0, https://polyhaven.com/license
+- Cars v2: clio2, p206, megane2, picasso, kangoo, twingo1 (procedural models with LOD0/LOD1, plates, /workspace/cars/gen_car2.py) - own work, CC0 1.0. Generic shapes inspired by 2000s French car silhouettes; no manufacturer logos.
+- Road decals (oil stains, cracks, patches, cast-iron manhole cover), window interiors with curtains, PVC roller shutters - procedural textures, own work, CC0 1.0
+- Map data: OpenStreetMap contributors (ODbL, https://www.openstreetmap.org/copyright); elevation: IGN RGE ALTI (Licence Ouverte Etalab 2.0)
+- Asphalt textures asphalt_ww (diffuse/normal/smoothness) and parking-bay tile (parking.png, parking_nor, parking_ms): procedural, own work (Tools/generators/asphalt_tex.py), CC0 1.0
+- Cars v2 (clio2, p206, megane2, picasso, kangoo, twingo1 LOD0/LOD1, plates): procedural, own work (Tools/generators/gen_car2.py), CC0 1.0. Generic shapes inspired by 2000s French compacts; no manufacturer meshes, logos or trademarks.
