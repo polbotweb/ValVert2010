@@ -953,16 +953,16 @@ public static class ValVertWoods {
     // Reusable Val Vert entrance: grey alu glazed door, side glazing, grey concrete canopy,
     // house-number plaque, round wall lamp, intercom, roller shutter. Prefab saved once, instanced per OSM address.
     public static GameObject BuildEntrancePrefab(){
-        string path="Assets/ValVert/Prefabs/vv_entrance.prefab";
-        Directory.CreateDirectory("Assets/ValVert/Prefabs");
+        string path="Assets/_Project/Runtime/World/Props/Entrance/Prefabs/vv_entrance.prefab";
+        Directory.CreateDirectory("Assets/_Project/Runtime/World/Props/Entrance/Prefabs");
         var existing=AssetDatabase.LoadAssetAtPath<GameObject>(path);
         if(existing){ AssetDatabase.DeleteAsset(path); }
         var root=new GameObject("vv_entrance");
         var metal=M("door_alum_grey",null,null,new Color(.42f,.44f,.46f),0.45f,0.35f); EnsureUrp(metal);
         var glass=M("door_glass",null,null,new Color(.62f,.70f,.78f,1f),0.85f,0.05f); EnsureUrp(glass);
         var canopyMat=M("canopy",ValVertDress.Tex("Assets/ValVert/Gen/concrete_canopy.png"),null,new Color(.78f,.79f,.80f),0.18f,0.05f); EnsureUrp(canopyMat);
-        var interMat=M("interphone",ValVertDress.Tex("Assets/ValVert/Gen/intercom_panel.png"),null,Color.white,0.35f); EnsureUrp(interMat);
-        var shutMat=M("shutter_grey",ValVertDress.Tex("Assets/ValVert/Gen/roller_shutter.png"),null,Color.white,0.2f); EnsureUrp(shutMat);
+        var interMat=M("interphone",ValVertDress.Tex("Assets/_Project/Runtime/World/Props/Entrance/Textures/intercom_panel.png"),null,Color.white,0.35f); EnsureUrp(interMat);
+        var shutMat=M("shutter_grey",ValVertDress.Tex("Assets/_Project/Runtime/World/Props/Entrance/Textures/roller_shutter.png"),null,Color.white,0.2f); EnsureUrp(shutMat);
         var handle=M("handle_brushed",null,null,new Color(.7f,.72f,.74f),0.6f); EnsureUrp(handle);
         var lampM=M("globe_lamp",null,null,new Color(.95f,.95f,.90f),0.85f); EnsureUrp(lampM);
         System.Action<string,Vector3,Vector3,Material> box=(nm,pos,sc,mat)=>{
@@ -1036,7 +1036,7 @@ public static class ValVertWoods {
             // Prefab faces -X; yaw rotates around Y (0=west, 90=north, 180=east, 270=south)
             inst.transform.rotation=Quaternion.Euler(0, pl.yaw, 0);
             // Swap plaque material to correct number
-            var plaqueTex=ValVertDress.Tex($"Assets/ValVert/Gen/plaque_{pl.num}.png");
+            var plaqueTex=ValVertDress.Tex($"Assets/_Project/Runtime/World/Props/Entrance/Textures/plaque_{pl.num}.png");
             var plaqueMat=M($"plaque_{pl.num}", plaqueTex, null, Color.white, 0.25f); EnsureUrp(plaqueMat);
             var plaque=inst.transform.Find("plaque");
             if(plaque){ var mr=plaque.GetComponent<MeshRenderer>(); if(mr) mr.sharedMaterial=plaqueMat; }

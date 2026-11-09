@@ -12,8 +12,23 @@ public static class ValVertDress {
         if(!normal&&ti.anisoLevel<8){ti.anisoLevel=16;ch=true;}
         if(p.EndsWith(".png")&&!normal&&!linear&&!ti.mipMapsPreserveCoverage){ti.alphaIsTransparency=true;ti.mipMapsPreserveCoverage=true;ti.alphaTestReferenceValue=0.45f;ch=true;}
         if(ch) ti.SaveAndReimport(); var t=AssetDatabase.LoadAssetAtPath<Texture2D>(p); if(!t) L("MISSING TEX "+p); return t; }
+    // Relocated own-authored prop materials (GUID-preserving moves). Keep tiny and explicit.
+    static readonly System.Collections.Generic.Dictionary<string,string> MatRelocs = new System.Collections.Generic.Dictionary<string,string>{
+        {"door_alum_grey","Assets/_Project/Runtime/World/Props/Entrance/Materials/door_alum_grey.mat"},
+        {"door_glass","Assets/_Project/Runtime/World/Props/Entrance/Materials/door_glass.mat"},
+        {"handle_brushed","Assets/_Project/Runtime/World/Props/Entrance/Materials/handle_brushed.mat"},
+        {"shutter_grey","Assets/_Project/Runtime/World/Props/Entrance/Materials/shutter_grey.mat"},
+        {"interphone","Assets/_Project/Runtime/World/Props/Entrance/Materials/interphone.mat"},
+        {"globe_lamp","Assets/_Project/Runtime/World/Props/Entrance/Materials/globe_lamp.mat"},
+        {"plaque_7","Assets/_Project/Runtime/World/Props/Entrance/Materials/plaque_7.mat"},
+        {"plaque_9","Assets/_Project/Runtime/World/Props/Entrance/Materials/plaque_9.mat"},
+        {"plaque_11","Assets/_Project/Runtime/World/Props/Entrance/Materials/plaque_11.mat"},
+        {"plaque_13","Assets/_Project/Runtime/World/Props/Entrance/Materials/plaque_13.mat"},
+        {"plaque_14","Assets/_Project/Runtime/World/Props/Entrance/Materials/plaque_14.mat"},
+    };
+    public static string MatPath(string name)=>MatRelocs.TryGetValue(name,out var p)?p:("Assets/ValVert/Mats/"+name+".mat");
     public static Material Mat(string name,Texture2D d,Texture2D n,bool cut,Color col,float smooth=0.1f){
-        string path="Assets/ValVert/Mats/"+name+".mat";
+        string path=MatPath(name);
         var lit=Shader.Find("Universal Render Pipeline/Lit");
         if(lit==null) lit=Shader.Find("Universal Render Pipeline/Simple Lit");
         var m=AssetDatabase.LoadAssetAtPath<Material>(path);
