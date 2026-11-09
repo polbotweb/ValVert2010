@@ -13,11 +13,19 @@ public static class ValVertDress {
         if(p.EndsWith(".png")&&!normal&&!linear&&!ti.mipMapsPreserveCoverage){ti.alphaIsTransparency=true;ti.mipMapsPreserveCoverage=true;ti.alphaTestReferenceValue=0.45f;ch=true;}
         if(ch) ti.SaveAndReimport(); var t=AssetDatabase.LoadAssetAtPath<Texture2D>(p); if(!t) L("MISSING TEX "+p); return t; }
     public static Material Mat(string name,Texture2D d,Texture2D n,bool cut,Color col,float smooth=0.1f){
-        var m=new Material(Shader.Find("Universal Render Pipeline/Lit")); m.name=name;
-        if(d) m.SetTexture("_BaseMap",d); m.SetColor("_BaseColor",col); m.SetFloat("_Smoothness",smooth);
+        string path="Assets/ValVert/Mats/"+name+".mat";
+        var lit=Shader.Find("Universal Render Pipeline/Lit");
+        if(lit==null) lit=Shader.Find("Universal Render Pipeline/Simple Lit");
+        var m=AssetDatabase.LoadAssetAtPath<Material>(path);
+        if(m==null){ m=new Material(lit); m.name=name; AssetDatabase.CreateAsset(m,path); }
+        else if(m.shader==null || m.shader.name.Contains("InternalError") || !m.shader.isSupported || m.shader!=lit)
+            m.shader=lit;
+        if(d) m.SetTexture("_BaseMap",d); else m.SetTexture("_BaseMap",(Texture2D)null);
+        m.SetColor("_BaseColor",col); m.SetFloat("_Smoothness",smooth); m.SetFloat("_Metallic",0f);
         if(n){ m.SetTexture("_BumpMap",n); m.EnableKeyword("_NORMALMAP"); }
         if(cut){ m.SetFloat("_AlphaClip",1); m.SetFloat("_Cutoff",0.45f); m.EnableKeyword("_ALPHATEST_ON"); m.SetFloat("_Cull",0); m.renderQueue=2450; m.SetOverrideTag("RenderType","TransparentCutout"); }
-        m.enableInstancing=true; AssetDatabase.CreateAsset(m,"Assets/ValVert/Mats/"+name+".mat"); return m; }
+        else { m.SetFloat("_AlphaClip",0); m.DisableKeyword("_ALPHATEST_ON"); m.renderQueue=2000; }
+        m.enableInstancing=true; EditorUtility.SetDirty(m); return m; }
     static TerrainLayer TL(string n,float tile){
         var tl=new TerrainLayer(); tl.diffuseTexture=Tex(G+n+"_diff.jpg"); tl.normalMapTexture=Tex(G+n+"_nor.jpg",true); tl.maskMapTexture=Tex(G+n+"_mask.png",false,true);
         tl.tileSize=new Vector2(tile,tile); if(n=="leafy_grass") tl.diffuseRemapMax=new Vector4(0.8f,1.0f,0.65f,1); tl.normalScale=1; tl.metallic=0; tl.smoothness=0; tl.maskMapRemapMax=new Vector4(0,1,1,0.5f);
