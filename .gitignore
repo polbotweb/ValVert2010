@@ -70,3 +70,15 @@ Assets/ValVert/Prefabs/ef_*
 Assets/ValVert/Gen/snowtrees/
 Assets/ValVert/Gen/snow/shell_UNS_Bush_Leaves.png*
 Assets/ValVert/Gen/snow/shell_UNS_Spruce_Tree_Branch.png*
+
+# --- Proven rebuildable generated binaries (metas stay tracked); restore via Tools/rebuild ---
+/Assets/ValVert/Gen/sign_danger.png
+/Assets/ValVert/Gen/parking.png
+/Assets/ValVert/Gen/parking_nor.jpg
+/Assets/ValVert/Gen/parking_ms.png
+/Assets/ValVert/Ground/asphalt_ww_diff.jpg
+/Assets/ValVert/Ground/asphalt_ww_nor.jpg
+/Assets/ValVert/Ground/asphalt_ww_ms.png
+
+__pycache__/
+*.pyc

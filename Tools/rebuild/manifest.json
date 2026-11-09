@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "project": "ValVert2010",
+  "description": "Machine-readable rebuild manifest for proven generated outputs. Categories without proof remain tracked and unsupported.",
+  "tool_versions_policy": "Pin host Python 3 + numpy + Pillow; record versions at rebuild time in staging report.json.",
+  "guid_policy": "Never rewrite .meta for rebuilt binaries. Metas stay tracked; only binary payloads are regenerated beside existing GUIDs.",
+  "staging_default": "/workspace/valvert/rebuild-staging",
+  "targets": {
+    "sign_danger": {
+      "status": "proven",
+      "producer": "Tools/rebuild/producers/signs.py",
+      "legacy_generator": "Tools/generators/signs.py",
+      "seed": null,
+      "inputs": [
+        {"path": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "kind": "system_font", "required": true}
+      ],
+      "outputs": [
+        {"path": "Assets/ValVert/Gen/sign_danger.png", "meta": "Assets/ValVert/Gen/sign_danger.png.meta", "compare": "bytes"}
+      ],
+      "notes": "Byte-identical to tracked asset on 2026-11-09 validation."
+    },
+    "asphalt_ww": {
+      "status": "proven",
+      "producer": "Tools/rebuild/producers/asphalt.py",
+      "legacy_generator": "Tools/generators/asphalt_tex.py",
+      "seed": 11,
+      "inputs": [],
+      "outputs": [
+        {"path": "Assets/ValVert/Ground/asphalt_ww_diff.jpg", "meta": "Assets/ValVert/Ground/asphalt_ww_diff.jpg.meta", "compare": "bytes"},
+        {"path": "Assets/ValVert/Ground/asphalt_ww_nor.jpg", "meta": "Assets/ValVert/Ground/asphalt_ww_nor.jpg.meta", "compare": "bytes"},
+        {"path": "Assets/ValVert/Ground/asphalt_ww_ms.png", "meta": "Assets/ValVert/Ground/asphalt_ww_ms.png.meta", "compare": "bytes"}
+      ],
+      "notes": "Procedural FFT asphalt; seed 11. Matches Ground textures byte-for-byte."
+    },
+    "parking": {
+      "status": "proven",
+      "producer": "Tools/rebuild/producers/asphalt.py",
+      "legacy_generator": "Tools/generators/asphalt_tex.py",
+      "seed": 21,
+      "inputs": [],
+      "outputs": [
+        {"path": "Assets/ValVert/Gen/parking.png", "meta": "Assets/ValVert/Gen/parking.png.meta", "compare": "pixels_rgb"},
+        {"path": "Assets/ValVert/Gen/parking_nor.jpg", "meta": "Assets/ValVert/Gen/parking_nor.jpg.meta", "compare": "bytes"},
+        {"path": "Assets/ValVert/Gen/parking_ms.png", "meta": "Assets/ValVert/Gen/parking_ms.png.meta", "compare": "bytes"}
+      ],
+      "notes": "Albedo written as PNG (existing consumer path). Generator historically wrote parking_diff.jpg; pixels match."
+    },
+    "facade_atlas": {
+      "status": "deterministic_not_equivalent",
+      "producer": "Tools/rebuild/producers/facade_atlas.py",
+      "legacy_generator": "Tools/generators/facade_atlas.py",
+      "seed": 7,
+      "inputs": [
+        {"path": "Assets/ValVert/Gen/grey_plaster_diff_1k.jpg", "kind": "tracked_source", "required": true}
+      ],
+      "outputs": [
+        {"path": "Assets/ValVert/Gen/facade_atlas.png", "meta": "Assets/ValVert/Gen/facade_atlas.png.meta", "compare": "bytes"}
+      ],
+      "notes": "Two clean runs match each other, but output size/content differs from current tracked atlas (4096x1536 vs 3072x1536). NOT eligible to untrack."
+    }
+  },
+  "unsupported": {
+    "grass_assets": "Already gitignored; Unity ValVertWoods.Grass needs full terrain/scene — not validated in this Python sandbox.",
+    "m_Bld_meshes": "Already gitignored; produced by ValVertSetup.Build / Woods — destructive full-scene hooks, not sandboxed here.",
+    "demfix": "Editor DEM snap artefacts; not a clean reproducible product.",
+    "snow_shells_vendor": "gitignored vendor-derived; needs local Asset Store packs.",
+    "facade_atlas_untrack": "Blocked until generator matches intended existing atlas or scene is intentionally upgraded.",
+    "unity_full_city": "ValVertSetup.Build mutates scene/materials; out of scope for this milestone."
+  }
+}

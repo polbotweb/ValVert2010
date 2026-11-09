@@ -39,7 +39,20 @@ Les scripts runtime **n’utilisent pas** `UnityEditor` et ne sont **pas** sous 
 
 ## Données générées (prochain chantier)
 
-`Assets/ValVert/Gen/` (herbe, gros maillages, demfix, snow…) : toujours régénérables via `ValVertSetup.Build` / `ValVertWoods.Grass`. **Pas** désuivi ni pipeline rebuild massif dans cette PR — seulement documenté.
+## Données générées — pipeline (2026-11-09)
+
+Point d’entrée : `python3 Tools/rebuild/rebuild.py`. Manifeste : `Tools/rebuild/manifest.json`.
+Doc : `Docs/generated-rebuild.md`.
+
+Cibles **proven** (binaires gitignorés, metas suivis) : `sign_danger`, `asphalt_ww`, `parking`.
+`facade_atlas` : déterministe mais non équivalent → reste suivi.
+Grass / m_Bld / Setup.Build : non sandboxés dans ce milestone.
+
+### Périmètre honnête
+
+- **Prouvé + binaires désuivis (metas gardés)** : `sign_danger`, `asphalt_ww`, `parking` (~15.3 Mo checkout).
+- **Déjà gitignorés sans preuve sandbox ici** : `grass_*`, `m_Bld_*` / `m_OuterRing` (Unity Setup/Woods).
+- **Non désuivi** : `facade_atlas` (déterministe ≠ asset actuel), demfix, snow vendor, rebuild ville complète.
 
 ## Limites honnêtes
 
