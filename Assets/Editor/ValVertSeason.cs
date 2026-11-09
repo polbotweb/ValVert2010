@@ -86,6 +86,10 @@ public static class ValVertEnvWire {
         sea.forestSteps=steps("forest");
         sea.overlays.Add(new ValVertSeasons.Overlay{steps=steps("asph"),mat=Mt("asphalt_leaves"),baseTex=Tx(G+"asphalt_ww_diff.jpg"),baseNor=Tx(G+"asphalt_ww_nor.jpg"),litterTex=Tx(GEN+"asphalt_leaves.png"),litterNor=Tx(G+"asphalt_02_nor.jpg")});
         sea.overlays.Add(new ValVertSeasons.Overlay{mat=Mt("corr_leaves"),baseTex=Tx(GEN+"corrugated_iron_02_diff_1k.jpg"),litterTex=Tx(GEN+"corrugated_leaves.png")});
+        // Autumn-only leaf carpet on earth paths / stair fill (photos Nov 2026)
+        sea.overlays.Add(new ValVertSeasons.Overlay{mat=Mt("stair_earth"),baseTex=Tx(P6+"fg02_diff.jpg"),baseNor=Tx(P6+"fg02_nor.jpg"),litterTex=Tx(G+"forest_leaves_02_diff.jpg"),litterNor=Tx(G+"forest_leaves_02_nor.jpg")});
+        sea.overlays.Add(new ValVertSeasons.Overlay{mat=Mt("path_dirt"),baseTex=Tx(G+"stony_dirt_path_diff.jpg"),litterTex=Tx(G+"forest_leaves_02_diff.jpg")});
+        sea.overlays.Add(new ValVertSeasons.Overlay{mat=Mt("leafground"),baseTex=Tx(P6+"fg02_diff.jpg"),baseNor=Tx(P6+"fg02_nor.jpg"),litterTex=Tx(G+"forest_leaves_02_diff.jpg"),litterNor=Tx(G+"forest_leaves_02_nor.jpg")});
         sea.forestLayer=AssetDatabase.LoadAssetAtPath<TerrainLayer>(G+"forest_leaves_02.terrainlayer");
         sea.forestLitterTex=Tx(G+"forest_leaves_02_diff.jpg"); sea.forestLitterNor=Tx(G+"forest_leaves_02_nor.jpg"); sea.forestBaseTex=Tx(P6+"fg02_diff.jpg"); sea.forestBaseNor=Tx(P6+"fg02_nor.jpg");
         { var prev=new System.Collections.Generic.Dictionary<TerrainLayer,ValVertSeasons.WetLayer>(); foreach(var x in sea.wetLayers) if(x.layer) prev[x.layer]=x; sea.wetLayers.Clear();
@@ -219,7 +223,7 @@ public static class ValVertWeatherWire {
         var w=go.GetComponent<ValVertWeather>()??go.AddComponent<ValVertWeather>(); w.snowMats.Clear(); w.snowLayers.Clear(); w.snowTints.Clear();
         w.rainMat=PMat("vv_rain",true); w.snowMat=PMat("vv_snow",false);
         string M="Assets/ValVert/Mats/";
-        void Mat(string n,float f,bool seasonal=false,bool slush=false){ var m=AssetDatabase.LoadAssetAtPath<Material>(M+n+".mat"); if(!m||!m.HasProperty("_BaseMap")) return; var st=Steps(m.GetTexture("_BaseMap"),slush); if(st!=null) w.snowMats.Add(new ValVertWeather.SnowTex{mat=m,steps=st,factor=f,seasonal=seasonal}); }
+        void Mat(string n,float f,bool seasonal=false,bool slush=false){ var m=AssetDatabase.LoadAssetAtPath<Material>(M+n+".mat"); if(!m||!m.HasProperty("_BaseMap")) return; var st=Steps(m.GetTexture("_BaseMap"),slush); if(st!=null) w.snowMats.Add(new ValVertWeather.SnowTex{mat=m,steps=st,factor=f,seasonal=seasonal,orig=st[0]}); }
         foreach(var n in new[]{"leafground","forest_fg02","stair_earth","bed_soil","path_dirt","school_yard","roof","roof_flat","roof_gravel","roof_gravel2","roof_gravel3","roof_tiles_red","roof_terracotta","roof_brown","roof_slate","roof_gym"}) Mat(n,1f);
         Mat("path_concrete",0.8f); Mat("kerb",0.7f);
         foreach(var n in new[]{"asphalt_road","road","parking_lot"}) Mat(n,1f,false,false);
@@ -229,7 +233,7 @@ public static class ValVertWeatherWire {
         foreach(var t in Terrain.activeTerrains) foreach(var l in t.terrainData.terrainLayers){ if(!l||w.snowLayers.Exists(x=>x.layer==l)) continue;
             bool asph=l.name.Contains("asphalt"); bool forest=l.name.Contains("forest");
             var src=forest?AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/ValVert/Veg/pilot6/fg02_diff.jpg"):l.diffuseTexture;
-            var st=Steps(src,false); if(st!=null) w.snowLayers.Add(new ValVertWeather.SnowLayer{layer=l,steps=st,factor=1f}); }
+            var st=Steps(src,false); if(st!=null){ /* restore layer to clean base before review/play mutates it */ if(st[0]) l.diffuseTexture=(Texture2D)st[0]; w.snowLayers.Add(new ValVertWeather.SnowLayer{layer=l,steps=st,factor=1f,orig=st[0]}); } }
         // Colour-tint snow for materials that have no albedo map (metal roofs, EV posts, etc.)
         w.snowTints.Clear();
         void Tint(string n,float amt=0.85f){ var m=AssetDatabase.LoadAssetAtPath<Material>(M+n+".mat"); if(!m||!m.HasProperty("_BaseColor")) return;
