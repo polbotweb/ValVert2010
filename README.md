@@ -14,16 +14,37 @@ Les bâtiments, les rues et les chemins viennent d'OpenStreetMap. Le relief, la 
 > De même, l'herbe générée (`Assets/ValVert/Gen/grass_*.asset`, environ 400 Mo) n'est pas dans le dépôt. Elle est recréée par `ValVertWoods.Grass()`, appelé depuis `ValVertSetup.Build()`. Sans elle, la scène s'ouvre quand même, mais sans les touffes d'herbe.
 
 ## Contenu
-- `Assets/` : le projet Unity (scènes, scripts d'éditeur dans `Assets/Editor`, maillages générés).
-- `Tools/generators/` : les scripts Python qui préparent les données (OSM, IGN).
-- `Captures/` : les derniers rendus.
-- `CREDITS_ASSETS.txt` : les crédits détaillés.
+- `Assets/_Project/` : code et organisation cible (Runtime + Editor + Art). Voir `Docs/architecture-map.md`.
+- `Assets/Scenes/ValVert.unity` : scène principale.
+- `Assets/ValVert/` : données monde / matériaux (migration progressive vers `_Project`).
+- `Assets/_Project/Editor/{Generators,Tools,Validation,Debug}/` : outils Unity classés par rôle.
+- `Tools/generators/` : scripts Python hors Unity (OSM, IGN).
+- `Captures/` : derniers rendus (racine du dépôt).
+- `Docs/` : architecture, manifests de migration.
+- `CREDITS_ASSETS.txt` : crédits détaillés.
 
 ## Crédits et licences
 - © les contributeurs d'**OpenStreetMap**, données sous licence **ODbL 1.0** (https://www.openstreetmap.org/copyright).
 - **IGN** (relief RGE ALTI, MNS/MNH, BD ORTHO 2006-2010), sous **Licence Ouverte / Etalab 2.0**.
 - Textures et modèles **Poly Haven**, en **CC0**.
 - La liste complète est dans `CREDITS_ASSETS.txt`.
+
+## Où trouver le code (après réorg structurelle)
+
+| Système | Emplacement |
+|---|---|
+| Horloge / jour-nuit | `Assets/_Project/Runtime/Gameplay/DayNight/ValVertClock.cs` |
+| Saisons | `Assets/_Project/Runtime/Gameplay/Season/ValVertSeasons.cs` |
+| Météo | `Assets/_Project/Runtime/Gameplay/Weather/ValVertWeather.cs` |
+| Lampadaires | `Assets/_Project/Runtime/World/Props/Lighting/ValVertStreetLights.cs` |
+| Joueur FPS | `Assets/_Project/Runtime/Characters/Player/SimpleFPS.cs` |
+| Smoke test player | `Assets/_Project/Runtime/Gameplay/QA/ValVertSmoke.cs` |
+| Générateurs scène | `Assets/_Project/Editor/Generators/` (`ValVertSetup`, `ValVertWoods`, `ValVertDress`, …) |
+| Outils | `Assets/_Project/Editor/Tools/` |
+| Validation / review | `Assets/_Project/Editor/Validation/` |
+| Entrée Val Vert (props) | `Assets/_Project/Runtime/World/Props/Entrance/` |
+
+Les noms de classes et les GUID `.meta` sont inchangés : la scène et `-executeMethod NomClasse.Methode` continuent de fonctionner.
 
 ## Environnement dynamique (runtime)
 `ValVertEnvironment` (scène) porte : **ValVertClock** (date/heure 2010, position solaire NOAA pour Seynod, heure CET/CEST, lune — phase et position calculées, lumière ambiante/brouillard/ciel), **ValVertSeasons** (phénologie continue : débourrement, été, couleurs d'automne progressives par essence, chute des feuilles, litière au sol, humidité), **ValVertWeather** (météo **synthétique** reproductible, tirée au sort par date selon un climat typique du bassin annécien — ce ne sont PAS des observations historiques : ciel clair/couvert/bruine/pluie/brouillard/neige, transitions douces, accumulation/fonte de neige, sol mouillé ; touche F6 = forcer un état) et **ValVertStreetLights** (349 lampadaires allumés au crépuscule).

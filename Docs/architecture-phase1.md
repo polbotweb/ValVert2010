@@ -108,3 +108,7 @@ Ces points sont documentés, **pas** traités en phase 1.
 - Ne jamais committer photos utilisateur, contenu brut Asset Store, credentials.
 - Pas de force-push / hard reset.
 - Après chaque passe validée : commit + merge normal, puis accord sur la suite.
+
+## Suite (2026-11-09)
+
+Réorganisation Runtime + Editor réalisée : voir `Docs/architecture-map.md`. Les dossiers vides de la phase 1 accueillent maintenant les systèmes migrés.
