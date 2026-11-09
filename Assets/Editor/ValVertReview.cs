@@ -260,7 +260,7 @@ public static class ValVertReview {
         var rock=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/rock.mat");
         if(rock!=null){ ValVertWoods.EnsureUrp(rock); ValVertWoods.MATS["rock"]=rock; }
         ValVertWoods.StairApproach();
-        int more=ValVertWoods.FixBrokenMaterials(); int heal=ValVertWoods.HealFoliage(); int proto=ValVertWoods.HealTreePrototypes();
+        int more=ValVertWoods.FixBrokenMaterials(); int heal=ValVertWoods.HealFoliage(); int proto=ValVertWoods.HealTreePrototypes(); ValVertWoods.WarmFoliageShaders();
         foreach(var t in Terrain.activeTerrains){ if(t){ t.drawTreesAndFoliage=true; if(t.terrainData!=null) t.terrainData.RefreshPrototypes(); } }
         Debug.Log($"[VV] SITESHEETS FixBroken={more} foliageHeal={heal} protoHeal={proto} terrainTrees=on");
         MaterialGuardOrExit("sitesheets");
