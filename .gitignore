@@ -82,3 +82,8 @@ Assets/ValVert/Gen/snow/shell_UNS_Spruce_Tree_Branch.png*
 
 __pycache__/
 *.pyc
+
+# ThirdParty vendor imports (Asset Store EULA) — keep folder + .gitkeep tracked
+/Assets/ThirdParty/**
+!/Assets/ThirdParty/.gitkeep
+!/Assets/ThirdParty.meta

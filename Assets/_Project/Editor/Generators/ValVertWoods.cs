@@ -1210,42 +1210,9 @@ public static class ValVertWoods {
         var t=go.GetComponent<Terrain>(); t.materialTemplate=main.materialTemplate; t.SetNeighbors(main,null,null,null); main.SetNeighbors(null,null,t,null);
         t.treeDistance=main.treeDistance; t.treeBillboardDistance=main.treeBillboardDistance; East=t; L("east terrain built"); return t;
     }
-    // self-made crossed-quad grass clumps, chunked
-    static bool Built(float x,float z){ for(int k=0;k<5;k++){ var o=k==0?Vector3.zero:Quaternion.Euler(0,k*90,0)*Vector3.forward*0.6f; if(Physics.Raycast(new Vector3(x+o.x,400f,z+o.z),Vector3.down,out var h,800f)&&!(h.collider is TerrainCollider)) return true; } return false; }
-    public static void Grass(Terrain terr){ Physics.SyncTransforms();
-        var ti=(TextureImporter)AssetImporter.GetAtPath(GEN+"grass_blades.png"); ti.alphaIsTransparency=true; ti.mipMapsPreserveCoverage=true; ti.alphaTestReferenceValue=0.5f; ti.wrapMode=TextureWrapMode.Clamp; ti.SaveAndReimport();
-        var gm=ValVertDress.Mat("grass_blades",AssetDatabase.LoadAssetAtPath<Texture2D>(GEN+"grass_blades.png"),null,true,new Color(.95f,.95f,.85f),0.05f); gm.SetFloat("_Cutoff",0.5f);
-        var ex=ValVertDress.Mask("veg_excl.png"); var fm=ValVertDress.Mask("canopy_orig.png"); var me=ValVertDress.Mask("veg_meadow.png");
-        var rnd=new System.Random(5); System.Func<float> R=()=>(float)rnd.NextDouble();
-        float CH=32f; var root=new GameObject("V3_Grass"); long total=0; int chunks=0;
-        float tp=terr.transform.position.y;
-        for(float cx=-532;cx<532;cx+=CH)for(float cz=-354.6f;cz<354.6f;cz+=CH){
-            bool park = cx>-380&&cx<500&&cz>-340&&cz<140;
-            float sp= park?0.75f:1.6f;
-            var V=new List<Vector3>(); var N=new List<Vector3>(); var U=new List<Vector2>(); var C=new List<Color>(); var T=new List<int>();
-            for(float x=cx;x<cx+CH;x+=sp)for(float z=cz;z<cz+CH;z+=sp){
-                float px=x+R()*sp, pz=z+R()*sp; if(px>531||pz>354) continue;
-                if(ValVertDress.S(ex,px,pz)>0.3f || Lab(px,pz)!=0 || Hidden(new Vector3(px,0,pz)) || ShotClear(px,pz)&&new Vector2(px,pz).magnitude<0) continue;
-                if(Built(px,pz)) continue;   // keep stair treads / built surfaces clear (no tufts poking through steps)
-                float f=ValVertDress.S(fm,px,pz), m=ValVertDress.S(me,px,pz);
-                float p = f>0.5f?0.45f:1f; if(R()>p) continue;
-                float hgt=(m>0.5f?0.32f:0.22f)+R()*0.2f; float w=0.4f+R()*0.3f;
-                float y=terr.SampleHeight(new Vector3(px,0,pz))+tp-0.04f;
-                var tint=Color.Lerp(new Color(.85f,.95f,.75f),new Color(1.05f,.95f,.7f),R()); if(f>0.5f) tint*=0.85f; tint.a=1;
-                float a0=R()*Mathf.PI; float u0=Mathf.Floor(R()*2)*0.5f;
-                for(int q=0;q<3;q++){ float a=a0+q*Mathf.PI/3; var d=new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*w*0.5f; var b=new Vector3(px,y,pz); int k=V.Count;
-                    V.Add(b-d); V.Add(b-d+Vector3.up*hgt); V.Add(b+d+Vector3.up*hgt); V.Add(b+d);
-                    for(int r=0;r<4;r++){ N.Add(Vector3.up); C.Add(tint);} U.Add(new Vector2(u0,0)); U.Add(new Vector2(u0,1)); U.Add(new Vector2(u0+0.5f,1)); U.Add(new Vector2(u0+0.5f,0));
-                    T.AddRange(new[]{k,k+1,k+2,k,k+2,k+3}); }
-            }
-            if(V.Count==0) continue;
-            var mesh=new Mesh{indexFormat=IndexFormat.UInt32}; mesh.SetVertices(V); mesh.SetNormals(N); mesh.SetUVs(0,U); mesh.SetColors(C); mesh.SetTriangles(T,0); mesh.RecalculateBounds();
-            AssetDatabase.CreateAsset(mesh,GEN+$"grass_{chunks}.asset");
-            var go=new GameObject("grass_"+chunks); go.transform.SetParent(root.transform,false); go.AddComponent<MeshFilter>().sharedMesh=mesh; var mr=go.AddComponent<MeshRenderer>(); mr.sharedMaterial=gm; mr.shadowCastingMode=ShadowCastingMode.Off;
-            var lg=go.AddComponent<LODGroup>(); lg.SetLODs(new[]{new LOD(0.06f,new Renderer[]{mr})}); lg.RecalculateBounds();
-            total+=V.Count/12; chunks++; }
-        ValVertDress.Counts["_grass_clumps"]=(int)total; L($"grass clumps={total} chunks={chunks}");
-    }
+    // Field grass: placement extracted to ValVertGrassField (architecture Vegetation).
+    // Default config still uses legacy homemade grass_blades until Asset Store 138810 is wired.
+    public static void Grass(Terrain terr){ ValVertGrassField.Build(terr); }
 
     static Material CM(string n,Color c,float sm,float met=0,bool emis=false){ var m=ValVertDress.Mat(n,null,null,false,c,sm); m.SetFloat("_Metallic",met); m.SetFloat("_Cull",0); if(emis){ m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor",c*0.35f); m.globalIlluminationFlags=MaterialGlobalIlluminationFlags.None; } EditorUtility.SetDirty(m); return m; }
     static Material ParkingMat(){ var m=M("parking_lot",ValVertDress.Tex(GEN+"parking.png"),ValVertDress.Tex(GEN+"parking_nor.jpg",true),Color.white,1f);

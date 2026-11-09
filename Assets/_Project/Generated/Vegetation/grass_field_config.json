@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1",
+  "materialMode": "legacy_homemade",
+  "legacyAlbedoPath": "Assets/ValVert/Gen/grass_blades.png",
+  "rootName": "V3_Grass",
+  "meshAssetPrefix": "grass_",
+  "materialName": "grass_blades",
+  "seed": 5,
+  "chunkSize": 32.0,
+  "parkSpacing": 0.75,
+  "woodsSpacing": 1.6,
+  "exclThreshold": 0.3,
+  "canopyThresh": 0.5,
+  "meadowThresh": 0.5,
+  "exclusionMasks": ["veg_excl.png", "canopy_orig.png", "veg_meadow.png", "label_v3.raw", "Built(raycast)", "Hidden(woods_meshes)"],
+  "pack": {
+    "assetStoreId": "138810",
+    "assetStoreUrl": "https://assetstore.unity.com/packages/2d/textures-materials/nature/grass-flowers-pack-free-138810",
+    "status": "awaiting_acquisition",
+    "localRoot": "",
+    "kindExpected": "2d_textures_materials",
+    "albedoRelative": "",
+    "note": "Fill localRoot + albedoRelative ONLY after genuine package inspect. Do not invent atlas UV or filenames. Import into ignored Assets/ThirdParty/<verified folder>."
+  },
+  "notes": "Geometry remains crossed-quad batching (pack is 2D textures). Switch materialMode to pack_cutout after wiring. Homemade blade path removed only once pack mode proven."
+}

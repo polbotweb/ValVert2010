@@ -58,3 +58,11 @@ Grass / m_Bld / Setup.Build : non sandboxés dans ce milestone.
 
 - Dossiers `Streaming`, `Vehicles`, `UI`, etc. existent comme squelette : **vides**, pas d’implémentation.
 - Pas de correction art / feuillage / matching photo ici.
+
+## Vegetation / grass field (en cours)
+
+- Générateur isolé : `Editor/Generators/Vegetation/ValVertGrassField.cs` (extrait de `ValVertWoods.Grass`).
+- Config : `Generated/Vegetation/grass_field_config.json` — pack Asset Store 138810 en attente d’acquisition locale.
+- Doc : `Docs/architecture-vegetation-grass.md`.
+- **Pas** de claim d’intégration pack tant que le package authentique n’est pas inspecté.
+
