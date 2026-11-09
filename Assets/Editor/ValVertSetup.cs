@@ -48,7 +48,7 @@ public static class ValVertSetup {
             for(int k=0;k<vv.Length;k+=3){ var w=mm.MultiplyPoint3x4(vv[k]); d.Add(w.y-(terr.SampleHeight(w)+tgo.transform.position.y)); }
             d.Sort(); int n=d.Count; L($"{nm}: vertex height above Unity terrain n={n} p10={d[n/10]:F2} median={d[n/2]:F2} p90={d[n*9/10]:F2} min={d[0]:F2}");
         }
-        ValVertDress.PaintPBR(td); ValVertDress.Surfaces(root); ValVertWoods.BuildEast(terr); ValVertDress.Vegetation(terr); ValVertWoods.Meshes(null); foreach(var t in root.GetComponentsInChildren<Transform>(true)) if(t.name=="Buildings"){ t.gameObject.SetActive(false); L("hidden FBX Buildings (replaced by procedural V3 buildings)"); } ValVertWoods.Meshes(null,"east_meshes.json","V3_East"); ValVertWoods.Cars(); ValVertWoods.Decals(); ValVertWoods.Grass(terr); ValVertDress.SkyPost();
+        ValVertDress.PaintPBR(td); ValVertDress.Surfaces(root); ValVertWoods.BuildEast(terr); ValVertDress.Vegetation(terr); ValVertWoods.Meshes(null); foreach(var t in root.GetComponentsInChildren<Transform>(true)) if(t.name=="Buildings"){ t.gameObject.SetActive(false); L("hidden FBX Buildings (replaced by procedural V3 buildings)"); } ValVertWoods.Meshes(null,"east_meshes.json","V3_East"); ValVertWoods.AldiParking(); ValVertWoods.BinStoreDoor(); ValVertWoods.StairApproach(); ValVertWoods.Cars(); ValVertWoods.Decals(); ValVertWoods.Grass(terr); ValVertDress.SkyPost();
         // light
         var lg=new GameObject("Sun"); var li=lg.AddComponent<Light>(); li.type=LightType.Directional; li.color=new Color(.95f,.96f,.98f); li.intensity=0.8f; li.shadows=LightShadows.Soft;
         lg.transform.rotation=Quaternion.Euler(18f,230f,0f);
@@ -87,11 +87,13 @@ public static class ValVertSetup {
           sunL.intensity=0.35f; sunL.shadows=LightShadows.Soft; sunL.shadowStrength=0.35f; sunL.color=new Color(.92f,.94f,.97f);
           RenderSettings.skybox=ValVertDress.OvercastSky; oc.clearFlags=CameraClearFlags.Skybox;
           RenderSettings.ambientMode=UnityEngine.Rendering.AmbientMode.Skybox; RenderSettings.ambientIntensity=1.3f; DynamicGI.UpdateEnvironment(); foreach(var rp in ValVertDress.Probes) if(rp) rp.RenderProbe(); RenderSettings.fogColor=new Color(.80f,.81f,.82f); RenderSettings.fogDensity=0.004f;
+          ValVertSeason.Apply(ValVertSeason.SelSeason,ValVertSeason.SelWeather);
           shF("cmp9_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f);
           shF("cmp10_street_cars.png",new Vector3(470.5f,0,40.0f),new Vector3(0.25f,-0.08f,1f),1.6f);
           shF("cmp10_cars_close.png",new Vector3(483.0f,0,56.0f),new Vector3(-0.8f,-0.25f,0.3f),1.6f);
           shF("cmp10_asphalt_close.png",new Vector3(476.0f,0,46.0f),new Vector3(0.2f,-0.55f,1f),1.5f);
           shF("cmp11_car_detail.png",new Vector3(475.0f,0,48.0f),new Vector3(0.55f,-0.12f,0.8f),1.3f);
+          shF("cmp12_pilot_ground.png",new Vector3(349.0f,0,134.6f),new Vector3(0.1f,-0.9f,0.45f),1.5f);
           shF("cmp9_facade.png",new Vector3(363.6f,0,141.5f),new Vector3(1f,-0.08f,0.05f),4.6f);
           shF("cmp9_window_road.png",new Vector3(373.2f,0,168.9f),new Vector3(-0.05f,-0.22f,1f),9.0f);   // #9 (OSM 62591705) north-facade upper window -> access road 1378070581
           shF("cmp9_access_road.png",new Vector3(371.0f,0,180.5f),new Vector3(-0.03f,-0.12f,-1f),1.7f);   // from the Rue du Val Vert junction down the access road toward #9-11-13
@@ -100,8 +102,21 @@ public static class ValVertSetup {
           shF("cmp9_orme.png",new Vector3(338.3f,0,218.8f),new Vector3(0.12f,0.0f,-1f),1.6f);
           shF("cmp9_alley_above.png",new Vector3(372.3f,0,127.3f),new Vector3(-0.12f,-0.6f,1f),10f);
           shF("cmp9_stepped.png",new Vector3(378f,0,115.3f),new Vector3(0.1f,-0.42f,-1f),17f);
+          { // SEASON comparison: same cameras rendered in summer, then the selected season is applied for the saved scene
+            ValVertSeason.Apply(ValVertSeason.Season.Summer,ValVertSeason.Weather.Dry);
+            shF("cmp13_summer_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f);
+            shF("cmp13_summer_alley_below.png",new Vector3(369.9f,0,128.0f),new Vector3(0f,0.04f,1f),1.6f);
+            shF("cmp13_summer_ground.png",new Vector3(349.0f,0,134.6f),new Vector3(0.1f,-0.9f,0.45f),1.5f);
+            shF("cmp13_summer_stairs_top.png",new Vector3(349.0f,0,134.6f),new Vector3(0.35f,-0.12f,1f),1.7f);
+            foreach(var cfg in new[]{("spring",ValVertSeason.Season.Spring,ValVertSeason.Weather.Dry),("winter",ValVertSeason.Season.Winter,ValVertSeason.Weather.Dry),("autumnwet",ValVertSeason.Season.Autumn,ValVertSeason.Weather.Wet)}){
+              ValVertSeason.Apply(cfg.Item2,cfg.Item3);
+              shF("cmp13_"+cfg.Item1+"_stairs.png",new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f),1.6f);
+              shF("cmp13_"+cfg.Item1+"_alley_below.png",new Vector3(369.9f,0,128.0f),new Vector3(0f,0.04f,1f),1.6f);
+              shF("cmp13_"+cfg.Item1+"_stairs_top.png",new Vector3(349.0f,0,134.6f),new Vector3(0.35f,-0.12f,1f),1.7f); }
+            ValVertSeason.Apply(ValVertSeason.SelSeason,ValVertSeason.SelWeather);
+            shF("cmp13_autumn_ground.png",new Vector3(349.0f,0,134.6f),new Vector3(0.1f,-0.9f,0.45f),1.5f); }
           sunL.intensity=si; sunL.shadows=ssh; sunL.shadowStrength=1f; sunL.color=sc; RenderSettings.skybox=sky0; RenderSettings.ambientMode=am0; RenderSettings.ambientLight=ac0; RenderSettings.ambientIntensity=ai0; oc.clearFlags=cf0; oc.backgroundColor=bg0; RenderSettings.fogColor=fc0; RenderSettings.fogDensity=fd0; DynamicGI.UpdateEnvironment(); foreach(var rp in ValVertDress.Probes) if(rp) rp.RenderProbe(); }
-        shH("v3_grand_frais.png",new Vector3(452f,0,108f),new Vector3(0f,0.08f,1f),1.7f); sh("v3_boulangerie.png",new Vector3(249.0f,0,313.4f),new Vector3(-0.88f,0.1f,0.47f)); sh("v3_assedic.png",new Vector3(262.4f,0,269.6f),new Vector3(0.58f,0.1f,-0.81f)); shH("v3_assedic_y.png",new Vector3(222f,0,300f),new Vector3(0.47f,-0.40f,-0.79f),30f); shH("v3_gf_parking_lower.png",new Vector3(450f,0,112f),new Vector3(0.83f,0.02f,0.55f),1.6f); shH("v3_gf_parking_deck.png",new Vector3(408f,0,116.5f),new Vector3(1f,-0.05f,0.02f),1.7f); sh("v3_maison_orme.png",new Vector3(346f,0,213f),new Vector3(-0.05f,0.1f,-1f)); sh("v3_168_binstore.png",new Vector3(368.2f,0,126f),new Vector3(-0.42f,0.12f,0.9f)); sh("v3_168_logstairs.png",new Vector3(353.5f,0,145.2f),new Vector3(0.95f,-0.12f,-0.15f)); shH("v3_168_ruelle_haut.png",new Vector3(371.5f,0,121f),new Vector3(-0.05f,-0.45f,1f),10f); shH("v3_stepped_from168.png",new Vector3(378f,0,115.3f),new Vector3(-0.1f,-0.4f,-1f),17f); sh("v3_orme_from_path.png",new Vector3(338f,0,222f),new Vector3(0.05f,0.05f,-1f));
+        shH("v3_grand_frais.png",new Vector3(452f,0,108f),new Vector3(0f,0.08f,1f),1.7f); sh("v3_boulangerie.png",new Vector3(249.0f,0,313.4f),new Vector3(-0.88f,0.1f,0.47f)); sh("v3_assedic.png",new Vector3(262.4f,0,269.6f),new Vector3(0.58f,0.1f,-0.81f)); shH("v3_assedic_y.png",new Vector3(222f,0,300f),new Vector3(0.47f,-0.40f,-0.79f),30f); shH("v3_gf_parking_lower.png",new Vector3(450f,0,112f),new Vector3(0.83f,0.02f,0.55f),1.6f); shH("v3_gf_parking_deck.png",new Vector3(408f,0,116.5f),new Vector3(1f,-0.05f,0.02f),1.7f); sh("v3_maison_orme.png",new Vector3(346f,0,213f),new Vector3(-0.05f,0.1f,-1f)); sh("v3_168_binstore.png",new Vector3(365.5f,0,122.5f),new Vector3(-0.2f,0.08f,1f)); sh("v3_168_logstairs.png",new Vector3(364.5f,0,128.5f),new Vector3(-0.85f,0.25f,0.35f)); shH("v3_168_ruelle_haut.png",new Vector3(366.5f,0,118f),new Vector3(-0.1f,0.05f,1f),1.7f); shH("v3_stepped_from168.png",new Vector3(378f,0,115.3f),new Vector3(-0.1f,-0.4f,-1f),17f); sh("v3_orme_from_path.png",new Vector3(338f,0,222f),new Vector3(0.05f,0.05f,-1f));
         sh("v3_aldi.png",new Vector3(488f,0,58f),new Vector3(-1f,0.06f,0.15f));
         sh("v3_trois_fontaines.png",new Vector3(452f,0,-14f),new Vector3(0.45f,0.03f,0.9f));
         shH("v3_st_feux.png",new Vector3(296f,0,171f),new Vector3(0.85f,-0.2f,0.5f),5f);
@@ -131,6 +146,7 @@ public static class ValVertSetup {
         { var tA=Terrain.activeTerrain; float hA=tA.SampleHeight(new Vector3(-25,0,105))+tA.transform.position.y; float hB=tA.SampleHeight(new Vector3(7,0,146))+tA.transform.position.y; oc.transform.position=new Vector3(-25,hA+38,105); oc.transform.LookAt(new Vector3(7,hB+8,146)); } Shot(oc,SHOTS+"v3_aerial_apts.png");
         RenderSettings.fogDensity=fd; Object.DestroyImmediate(oc.gameObject);
         foreach(var kv in ValVertDress.Counts) L("COUNT "+kv.Key+" = "+kv.Value);
+        ValVertEnvWire.Wire();   // runtime clock + seasons + street lights
         EditorSceneManager.SaveScene(scene,"Assets/Scenes/ValVert.unity"); AssetDatabase.SaveAssets();
         L("DONE");
     }

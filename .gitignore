@@ -58,3 +58,15 @@ crashlytics-build.properties
 /Assets/ValVert/Gen/m_Bld_facade.asset
 /Assets/ValVert/Gen/m_Bld_metal.asset
 /Assets/ValVert/Gen/m_OuterRing.asset
+
+# Unity Asset Store vendor content (Ultimate Nature Starter, Standard Unity Asset Store EULA) - never commit raw files
+Assets/InnerverseInteractive/
+Assets/InnerverseInteractive.meta
+Assets/ValVert/Prefabs/uns_*
+# European Forests - Realistic Trees (MysticForge, Asset Store EULA) - local only
+Assets/Realistic Tree/
+Assets/Realistic Tree.meta
+Assets/ValVert/Prefabs/ef_*
+Assets/ValVert/Gen/snowtrees/
+Assets/ValVert/Gen/snow/shell_UNS_Bush_Leaves.png*
+Assets/ValVert/Gen/snow/shell_UNS_Spruce_Tree_Branch.png*
