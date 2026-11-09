@@ -196,7 +196,6 @@ public class ValVertWeather : MonoBehaviour
         var clk = ValVertClock.Instance; if (clk) ApplyEffects(clk); else { Particles(); ApplyShells(); }
         var sea = GetComponent<ValVertSeasons>(); if (sea) { sea.wetness = 0f; sea.snowCover = SnowCover; sea.Tick(); }
         if (clk) ApplyEffects(clk);
-        // Diagnostic: confirm asphalt/roof actually received a snow step texture
         foreach (var s in snowMats) {
             if (!s.mat || s.steps == null) continue;
             if (s.mat.name != "asphalt_road" && s.mat.name != "roof" && s.mat.name != "forest_fg02" && s.mat.name != "leafground") continue;
@@ -205,6 +204,32 @@ public class ValVertWeather : MonoBehaviour
             Debug.Log($"[VV] SNOWCHK {s.mat.name} stepIdx={i} cur={(cur?cur.name:"null")} step={(i>=0&&i<s.steps.Length&&s.steps[i]?s.steps[i].name:"null")} factor={s.factor}");
         }
     }
+
+    /// Runtime-only clear: zero cover and restore every snow mat/terrain layer to steps[0]. Safe to call between review shots.
+    public void ClearSnowVisuals() {
+        forced = Kind.Clear;
+        SnowCover = 0f; Snowfall = 0f; Rain = 0f; Fog = Mathf.Min(Fog, 0.05f); Wetness = 0f;
+        var sea = GetComponent<ValVertSeasons>(); if (sea) { sea.snowCover = 0f; sea.wetness = Wetness; }
+        foreach (var s in snowMats) {
+            if (!s.mat || s.steps == null || s.steps.Length < 1) continue;
+            var orig = s.steps[0] ? s.steps[0] : s.orig;
+            if (orig) s.mat.SetTexture(s.texProp, orig);
+            s.orig = orig;
+            if (s.mat.HasProperty("_BumpScale")) s.mat.SetFloat("_BumpScale", 1.2f);
+            if (s.mat.HasProperty("_Smoothness")) s.mat.SetFloat("_Smoothness", 0.45f);
+            if (s.mat.HasProperty("_BaseColor")) s.mat.SetColor("_BaseColor", Color.white);
+        }
+        foreach (var l in snowLayers) {
+            if (!l.layer || l.steps == null || l.steps.Length < 1) continue;
+            var orig = l.steps[0] ? l.steps[0] : l.orig;
+            if (orig) { l.layer.diffuseTexture = (Texture2D)orig; l.orig = orig; }
+        }
+        foreach (var s in snowTints) if (s.mat && s.cached) s.mat.SetColor(s.colorProp, s.orig);
+        shellCover = -1f; // force ApplyShells to re-evaluate
+        var clk = ValVertClock.Instance; if (clk) ApplyEffects(clk); else { ApplyShells(); Particles(); }
+        Debug.Log($"[VV] ClearSnowVisuals snow={SnowCover:F2} treesSnowy={treesSnowy}");
+    }
+
     public float particleRateScale = 1f;
 
     void Update()
@@ -234,22 +259,23 @@ public class ValVertWeather : MonoBehaviour
         foreach (var s in snowMats)
         {
             if (!s.mat || s.steps == null || s.steps.Length < 2) { skipped++; continue; }
-            if (!s.orig) s.orig = s.mat.GetTexture(s.texProp);
+            // steps[0] is the true pre-snow albedo (never capture from live mat — that bakes snow into orig)
+            if (!s.orig) s.orig = s.steps[0] ? s.steps[0] : s.mat.GetTexture(s.texProp);
             int i = StepIndex(SnowCover * s.factor, s.steps.Length);
-            var tex = (i > 0) ? s.steps[i] : (!s.seasonal ? s.orig : null);
+            Texture tex = (i > 0) ? s.steps[i] : s.orig;
             if (i > 0 && tex == null) { skipped++; Debug.LogWarning($"[VV] snowMat {s.mat.name} step[{i}] NULL (len={s.steps.Length})"); continue; }
             if (tex != null) { s.mat.SetTexture(s.texProp, tex); applied++; }
-            else if (!s.seasonal && s.orig) s.mat.SetTexture(s.texProp, s.orig);
         }
         foreach (var l in snowLayers)
         {
             if (!l.layer || l.steps == null || l.steps.Length < 2) { skipped++; continue; }
-            if (!l.orig) l.orig = l.layer.diffuseTexture;
+            if (!l.orig) l.orig = l.steps[0] ? l.steps[0] : l.layer.diffuseTexture;
             int i = StepIndex(SnowCover * l.factor, l.steps.Length);
-            var t = i == 0 ? null : l.steps[i];
+            Texture t = (i > 0) ? l.steps[i] : l.orig;
             if (i > 0 && t == null) { skipped++; Debug.LogWarning($"[VV] snowLayer {l.layer.name} step[{i}] NULL"); continue; }
-            if (t && l.layer.diffuseTexture != t) { l.layer.diffuseTexture = (Texture2D)t; applied++; }
-            else if (!t && l.layer.diffuseTexture != l.orig && Array.IndexOf(l.steps, l.layer.diffuseTexture) > 0) l.layer.diffuseTexture = (Texture2D)l.orig;
+            // Always write — including restore to steps[0]/orig when cover is 0 (runtime-only; do not leave snow in TerrainLayer assets)
+            if (t != null && l.layer.diffuseTexture != t) { l.layer.diffuseTexture = (Texture2D)t; applied++; }
+            else if (t != null) l.layer.diffuseTexture = (Texture2D)t;
         }
         // Flatten normals / sheen under snow; restore when clear so later seasons aren't stuck white
         foreach (var s in snowMats) {
@@ -317,8 +343,18 @@ public class ValVertWeather : MonoBehaviour
     void OnDisable()
     {
         ClearShells();
-        foreach (var s in snowMats) if (s.mat && s.orig) s.mat.SetTexture(s.texProp, s.orig);
-        foreach (var l in snowLayers) if (l.layer && l.orig) l.layer.diffuseTexture = (Texture2D)l.orig;
+        foreach (var s in snowMats) {
+            if (!s.mat) continue;
+            var o = (s.steps != null && s.steps.Length > 0 && s.steps[0]) ? s.steps[0] : s.orig;
+            if (o) s.mat.SetTexture(s.texProp, o);
+            if (s.mat.HasProperty("_BumpScale")) s.mat.SetFloat("_BumpScale", 1.2f);
+            if (s.mat.HasProperty("_BaseColor")) s.mat.SetColor("_BaseColor", Color.white);
+        }
+        foreach (var l in snowLayers) {
+            if (!l.layer) continue;
+            var o = (l.steps != null && l.steps.Length > 0 && l.steps[0]) ? l.steps[0] : l.orig;
+            if (o) l.layer.diffuseTexture = (Texture2D)o;
+        }
         foreach (var s in snowTints) if (s.mat && s.cached) s.mat.SetColor(s.colorProp, s.orig);
     }
 }
