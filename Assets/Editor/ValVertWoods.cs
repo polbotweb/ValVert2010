@@ -319,7 +319,464 @@ public static class ValVertWoods {
           Bounds bb=rend.Length>0?rend[0].bounds:new Bounds(bo.transform.position,Vector3.one);
           foreach(var r in rend) bb.Encapsulate(r.bounds);
           bo.transform.position=new Vector3(bx, gy0 - bb.size.y*0.35f, bz); }
-        L($"stair approach: {posts.Count} posts, boulder at {bx},{bz}"); }
+        L($"stair approach: {posts.Count} posts, boulder at {bx},{bz}");
+        LogStairsDress(); Ramp9to13(); Batch2Dress(); }
+
+    // Photo refs Nov 2026 (stairs top-down, path-to-carpark, woods-path-fence): sleeper steps + dual
+    // handrails on the nº9 log stair, car-park edge boulders, woods-path stump. No Aldi changes.
+    public static void LogStairsDress(){
+        var root=GameObject.Find("V3_LogStairsDress"); if(root) Object.DestroyImmediate(root);
+        root=new GameObject("V3_LogStairsDress"); Physics.SyncTransforms();
+        var wood=M("log_fence",ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_diff_1k.jpg"),ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_nor_gl_1k.jpg",true),new Color(.55f,.48f,.40f),0.08f);
+        var gravel=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/stair_earth.mat")
+            ?? M("stair_gravel",ValVertDress.Tex("Assets/ValVert/Ground/forest_leaves_02_diff.jpg"),null,new Color(1.6f,1.4f,1.1f),0.05f);
+        var rockM=MATS!=null&&MATS.ContainsKey("rock")?MATS["rock"]:wood;
+        System.Func<float,float,float> gy=(x,z)=>{ var t=Terrain.activeTerrain; float ty=t.SampleHeight(new Vector3(x,0,z))+t.transform.position.y; if(Physics.Raycast(new Vector3(x,ty+4f,z),Vector3.down,out var hh,8f)&&!(hh.collider is TerrainCollider)) return Mathf.Max(ty,hh.point.y); return ty; };
+        System.Action<string,Vector3,Vector3,float> log=(nm,a,b,r)=>{ var g=GameObject.CreatePrimitive(PrimitiveType.Cylinder); Object.DestroyImmediate(g.GetComponent<Collider>()); g.name=nm; g.transform.SetParent(root.transform,false);
+            g.transform.position=(a+b)/2; g.transform.up=(b-a).normalized; g.transform.localScale=new Vector3(r*2,Vector3.Distance(a,b)/2,r*2); g.GetComponent<MeshRenderer>().sharedMaterial=wood; };
+        // --- nº9 log staircase: sleepers + gravel treads, handrails BOTH sides ---
+        // Slope runs roughly west(high, woods) -> east(low, alley). Match Bld_stair_earth AABB.
+        float zC=133.2f; float xTop=356.4f, xBot=361.5f; int nSteps=14;
+        for(int i=0;i<nSteps;i++){
+            float t=(i+0.5f)/nSteps; float x=Mathf.Lerp(xTop,xBot,t);
+            float y=gy(x,zC);
+            // timber sleeper across the stair (N-S)
+            float z0=zC-0.85f, z1=zC+0.85f;
+            var a=new Vector3(x,y+0.06f,z0); var b=new Vector3(x,y+0.06f,z1);
+            log($"sleeper_{i}",a,b,0.09f);
+            // thin gravel/earth tread behind sleeper (west side)
+            if(i+1<nSteps){
+                float x2=Mathf.Lerp(xTop,xBot,(i+1.0f)/nSteps);
+                var q=GameObject.CreatePrimitive(PrimitiveType.Cube); Object.DestroyImmediate(q.GetComponent<Collider>());
+                q.name=$"tread_{i}"; q.transform.SetParent(root.transform,false);
+                float xm=(x+x2)*0.5f; float ym=gy(xm,zC)+0.02f;
+                q.transform.position=new Vector3(xm,ym,zC); q.transform.localScale=new Vector3(Mathf.Abs(x2-x)*0.92f,0.04f,1.55f);
+                q.GetComponent<MeshRenderer>().sharedMaterial=gravel;
+            }
+        }
+        // Handrails: posts + two rails, BOTH sides (south z~132.2 and north z~134.2)
+        foreach(var (side,zR) in new[]{("S",zC-0.95f),("N",zC+0.95f)}){
+            var posts=new List<Vector3>();
+            for(int i=0;i<=nSteps;i+=2){
+                float t=i/(float)nSteps; float x=Mathf.Lerp(xTop,xBot,t);
+                posts.Add(new Vector3(x,gy(x,zR),zR));
+            }
+            for(int i=0;i<posts.Count;i++){ var p=posts[i]; log($"hr_{side}_post_{i}",p+Vector3.down*0.15f,p+Vector3.up*0.95f,0.065f); }
+            for(int i=0;i+1<posts.Count;i++) foreach(var hgt in new[]{0.42f,0.82f})
+                log($"hr_{side}_rail_{i}_{hgt}",posts[i]+Vector3.up*hgt,posts[i+1]+Vector3.up*hgt,0.05f);
+        }
+        // --- Car-park edge boulders (path-to-carpark photo): row along park edge near stair-top junction ---
+        // Path from ~349,134 toward car park SE (~370,120). Boulders along asphalt edge ~x 368-378, z~118-126
+        var rockPrefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/InnerverseInteractive/Ultimate Nature – Starter/Environment/Rocks/Forest/Prefabs/UNS_Standard_Rock_03.prefab");
+        var rockPrefab2=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/InnerverseInteractive/Ultimate Nature – Starter/Environment/Rocks/Forest/Prefabs/UNS_Standard_Rock_01.prefab");
+        float[,] boulders={{368.2f,125.5f,1.1f},{369.5f,123.8f,0.95f},{370.8f,122.2f,1.25f},{372.2f,120.8f,1.0f},{373.6f,119.5f,1.15f},{375.0f,118.4f,0.9f},{376.4f,117.5f,1.05f}};
+        for(int i=0;i<boulders.GetLength(0);i++){
+            float bx=boulders[i,0], bz=boulders[i,1], sc=boulders[i,2];
+            GameObject bo;
+            var pref=(i%2==0?rockPrefab:rockPrefab2)??rockPrefab;
+            if(pref!=null){ bo=(GameObject)Object.Instantiate(pref); foreach(var c in bo.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c); }
+            else { bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>()); if(rockM) bo.GetComponent<MeshRenderer>().sharedMaterial=rockM; }
+            bo.name=$"park_boulder_{i}"; bo.transform.SetParent(root.transform,false);
+            bo.transform.localScale=new Vector3(sc,sc*0.65f,sc*0.9f);
+            bo.transform.rotation=Quaternion.Euler(5+i*7, i*37, -8+i*3);
+            float gy0=gy(bx,bz);
+            var rend=bo.GetComponentsInChildren<MeshRenderer>();
+            Bounds bb=rend.Length>0?rend[0].bounds:new Bounds(bo.transform.position,Vector3.one);
+            foreach(var r in rend) bb.Encapsulate(r.bounds);
+            bo.transform.position=new Vector3(bx, gy0 - bb.size.y*0.30f, bz);
+        }
+        // --- Woods path stump (photo_woods_path_fence): right side of path near 350,136 ---
+        float sx=351.2f, sz=136.8f;
+        var stump=GameObject.CreatePrimitive(PrimitiveType.Cylinder); Object.DestroyImmediate(stump.GetComponent<Collider>());
+        stump.name="woods_stump"; stump.transform.SetParent(root.transform,false);
+        float sy=gy(sx,sz);
+        stump.transform.position=new Vector3(sx,sy+0.28f,sz);
+        stump.transform.localScale=new Vector3(0.85f,0.28f,0.85f);
+        stump.GetComponent<MeshRenderer>().sharedMaterial=wood;
+        // stump top disc slightly darker
+        var top=GameObject.CreatePrimitive(PrimitiveType.Cylinder); Object.DestroyImmediate(top.GetComponent<Collider>());
+        top.name="woods_stump_top"; top.transform.SetParent(stump.transform,false);
+        top.transform.localPosition=new Vector3(0,1.05f,0); top.transform.localScale=new Vector3(1.05f,0.08f,1.05f);
+        top.GetComponent<MeshRenderer>().sharedMaterial=M("stump_top",null,null,new Color(.45f,.38f,.28f),0.15f);
+        // Extra fence segment along woods path left edge if missing (paved path / lawn separation)
+        // Align with existing approach fence x~362 but extend north along woods path x~348-352, z~132-140
+        float fxx=347.6f; var fposts=new List<Vector3>();
+        for(float zz=132.5f; zz<=140.5f; zz+=1.4f) fposts.Add(new Vector3(fxx,gy(fxx,zz),zz));
+        for(int i=0;i<fposts.Count;i++){ var p=fposts[i]; log($"wfence_post_{i}",p+Vector3.down*0.2f,p+Vector3.up*0.9f,0.06f); }
+        for(int i=0;i+1<fposts.Count;i++) foreach(var hgt in new[]{0.40f,0.78f})
+            log($"wfence_rail_{i}_{hgt}",fposts[i]+Vector3.up*hgt,fposts[i+1]+Vector3.up*hgt,0.048f);
+        L($"log stairs dress: {nSteps} sleepers, {boulders.GetLength(0)} park boulders, stump+woods fence");
+    }
+
+
+    // Path/ramp nº9→nº13 joining rue du Val Vert (user plan_ramp_9to13 + OSM).
+    // Flat along bin store (parking side), then ramps up to Val Vert; left log fence,
+    // right sleeper stairs+gravel+boulder+manhole; hedge/bed/brick footpath by the block.
+    // Rear car park + east lane from OSM parking_aisle ways 1378070581 / 1378070590.
+    // No Aldi / car edits.
+    public static void Ramp9to13(){
+        var old=GameObject.Find("V3_Ramp9to13"); if(old) Object.DestroyImmediate(old);
+        var root=new GameObject("V3_Ramp9to13"); Physics.SyncTransforms();
+        var wood=M("log_fence",ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_diff_1k.jpg"),ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_nor_gl_1k.jpg",true),new Color(.55f,.48f,.40f),0.08f);
+        var asp=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/asphalt_leaves.mat")
+            ?? AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/asphalt_road.mat");
+        var gravel=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/stair_earth.mat")
+            ?? M("stair_gravel",ValVertDress.Tex("Assets/ValVert/Ground/forest_leaves_02_diff.jpg"),null,new Color(1.6f,1.4f,1.1f),0.05f);
+        var grass=M("ramp_island_grass",ValVertDress.Tex("Assets/ValVert/Ground/leafy_grass_diff.jpg"),ValVertDress.Tex("Assets/ValVert/Ground/leafy_grass_nor.jpg",true),new Color(.42f,.68f,.30f),0.05f);
+        var hedge=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/hedge.mat")??wood;
+        var brick=M("brick_path_red",ValVertDress.Tex("Assets/ValVert/Ground/cc0/Concrete047A_col.jpg"),ValVertDress.Tex("Assets/ValVert/Ground/cc0/Concrete047A_nor.jpg",true),new Color(.72f,.32f,.24f),0.12f);
+        var rockM=MATS!=null&&MATS.ContainsKey("rock")?MATS["rock"]:wood;
+        System.Func<float,float,float> gy=(x,z)=>{ var t=Terrain.activeTerrain; float ty=t.SampleHeight(new Vector3(x,0,z))+t.transform.position.y; if(Physics.Raycast(new Vector3(x,ty+5f,z),Vector3.down,out var hh,10f)&&!(hh.collider is TerrainCollider)) return Mathf.Max(ty,hh.point.y); return ty; };
+        System.Action<string,Vector3,Vector3,float> log=(nm,a,b,r)=>{ var g=GameObject.CreatePrimitive(PrimitiveType.Cylinder); Object.DestroyImmediate(g.GetComponent<Collider>()); g.name=nm; g.transform.SetParent(root.transform,false);
+            g.transform.position=(a+b)/2; g.transform.up=(b-a).normalized; g.transform.localScale=new Vector3(r*2,Vector3.Distance(a,b)/2,r*2); g.GetComponent<MeshRenderer>().sharedMaterial=wood; };
+        System.Action<string,float,float,float,float,Material,float> patch=(nm,cx,cz,sx,sz,mat,yOff)=>{
+            var q=GameObject.CreatePrimitive(PrimitiveType.Cube); Object.DestroyImmediate(q.GetComponent<Collider>());
+            q.name=nm; q.transform.SetParent(root.transform,false);
+            float y=gy(cx,cz)+yOff; q.transform.position=new Vector3(cx,y,cz); q.transform.localScale=new Vector3(sx,0.06f,sz);
+            if(mat) q.GetComponent<MeshRenderer>().sharedMaterial=mat; };
+
+        // --- Asphalt path centreline: Marche (parking edge ~z 132) flat along bin store, then ramp to Val Vert (~z 178) ---
+        // Width ~3.5 m. Existing Env_asphalt_leaves covers much of this; reinforce flat+ramp strip and join.
+        var pathPts=new List<Vector3>();
+        // flat section west of / along bin store (OSM 62592236 x361-366 z134-147)
+        for(float z=131.5f; z<=147f; z+=1.5f) pathPts.Add(new Vector3(362.4f,0,z));
+        // ramp: shift slightly east toward building west court, climb to Val Vert
+        for(float z=148.5f; z<=177.5f; z+=1.5f){
+            float t=(z-148.5f)/(177.5f-148.5f);
+            float x=Mathf.Lerp(363.5f,369.5f,t); // drifts east toward join near car park
+            pathPts.Add(new Vector3(x,0,z));
+        }
+        for(int i=0;i+1<pathPts.Count;i++){
+            var a=pathPts[i]; var b=pathPts[i+1];
+            float cx=(a.x+b.x)*0.5f, cz=(a.z+b.z)*0.5f;
+            float dx=b.x-a.x, dz=b.z-a.z; float len=Mathf.Sqrt(dx*dx+dz*dz);
+            var q=GameObject.CreatePrimitive(PrimitiveType.Cube); Object.DestroyImmediate(q.GetComponent<Collider>());
+            q.name=$"ramp_asp_{i}"; q.transform.SetParent(root.transform,false);
+            float y=gy(cx,cz)+0.03f;
+            q.transform.position=new Vector3(cx,y,cz);
+            q.transform.rotation=Quaternion.LookRotation(new Vector3(dx,0,dz));
+            q.transform.localScale=new Vector3(3.6f,0.05f,len+0.05f);
+            if(asp) q.GetComponent<MeshRenderer>().sharedMaterial=asp;
+        }
+
+        // --- LEFT: two-rail round-log fence along wooded/parking bank (west of path) ---
+        var fposts=new List<Vector3>();
+        for(float z=132f; z<=176f; z+=1.45f){
+            float t=Mathf.InverseLerp(132f,176f,z);
+            float x=Mathf.Lerp(360.6f,367.2f,Mathf.Max(0f,(z-147f)/(176f-147f))); // track path west edge
+            if(z<=147f) x=360.6f;
+            fposts.Add(new Vector3(x,gy(x,z),z));
+        }
+        for(int i=0;i<fposts.Count;i++){ var p=fposts[i]; log($"ramp_fence_post_{i}",p+Vector3.down*0.2f,p+Vector3.up*0.95f,0.065f); }
+        for(int i=0;i+1<fposts.Count;i++) foreach(var hgt in new[]{0.42f,0.82f})
+            log($"ramp_fence_rail_{i}_{hgt}",fposts[i]+Vector3.up*hgt,fposts[i+1]+Vector3.up*hgt,0.05f);
+
+        // --- RIGHT (upper ramp): timber sleeper stairs on gravel + round-log edging ---
+        int nSleep=10;
+        for(int i=0;i<nSleep;i++){
+            float t=(i+0.5f)/nSleep;
+            float z=Mathf.Lerp(152f,172f,t);
+            float x=Mathf.Lerp(365.8f,372.0f,t); // east of path centre
+            float y=gy(x,z);
+            // sleeper across (E-W short)
+            log($"ramp_sleeper_{i}", new Vector3(x-0.55f,y+0.05f,z), new Vector3(x+0.55f,y+0.05f,z), 0.085f);
+            // gravel tread
+            patch($"ramp_tread_{i}", x, z, 1.15f, 0.55f, gravel, 0.02f);
+            // log edging east side
+            if(i%2==0) log($"ramp_edge_{i}", new Vector3(x+0.7f,y-0.05f,z-0.4f), new Vector3(x+0.7f,y+0.55f,z+0.4f), 0.055f);
+        }
+        // grey boulder near bottom of these stairs
+        {
+            float bx=365.2f, bz=151.5f;
+            var rockPrefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/InnerverseInteractive/Ultimate Nature – Starter/Environment/Rocks/Forest/Prefabs/UNS_Standard_Rock_03.prefab");
+            GameObject bo;
+            if(rockPrefab!=null){ bo=(GameObject)Object.Instantiate(rockPrefab); foreach(var c in bo.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c); }
+            else { bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>()); if(rockM) bo.GetComponent<MeshRenderer>().sharedMaterial=rockM; }
+            bo.name="ramp_boulder"; bo.transform.SetParent(root.transform,false);
+            bo.transform.localScale=new Vector3(1.15f,0.7f,1.0f); bo.transform.rotation=Quaternion.Euler(10,55,-8);
+            float gy0=gy(bx,bz); var rend=bo.GetComponentsInChildren<MeshRenderer>();
+            Bounds bb=rend.Length>0?rend[0].bounds:new Bounds(bo.transform.position,Vector3.one);
+            foreach(var r in rend) bb.Encapsulate(r.bounds);
+            bo.transform.position=new Vector3(bx, gy0 - bb.size.y*0.32f, bz);
+        }
+        // manhole cover on path near stairs bottom
+        {
+            var mhMat=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Gen/decals/manhole.mat");
+            if(mhMat==null){
+                var tex=AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/ValVert/Gen/decals/manhole.png");
+                mhMat=M("manhole_cover",tex,null,new Color(.35f,.36f,.37f),0.4f);
+            }
+            patch("ramp_manhole", 364.8f, 150.2f, 0.7f, 0.7f, mhMat, 0.045f);
+        }
+
+        // --- Further right: evergreen hedge + planted bed + log fence + brick-red footpath along block ---
+        for(float z=148f; z<=168f; z+=1.2f){
+            float x=373.2f;
+            var h=GameObject.CreatePrimitive(PrimitiveType.Cube); Object.DestroyImmediate(h.GetComponent<Collider>());
+            h.name=$"ramp_hedge_{z:F0}"; h.transform.SetParent(root.transform,false);
+            h.transform.position=new Vector3(x, gy(x,z)+0.55f, z); h.transform.localScale=new Vector3(0.55f,1.1f,1.15f);
+            h.GetComponent<MeshRenderer>().sharedMaterial=hedge;
+        }
+        // planted bed (laurel/ivy strip)
+        patch("ramp_bed", 374.3f, 158f, 1.4f, 18f, gravel, 0.01f);
+        // short log fence by bed
+        var bposts=new List<Vector3>();
+        for(float z=150f; z<=166f; z+=1.5f) bposts.Add(new Vector3(375.1f,gy(375.1f,z),z));
+        for(int i=0;i<bposts.Count;i++){ var p=bposts[i]; log($"bed_fence_post_{i}",p+Vector3.down*0.15f,p+Vector3.up*0.7f,0.05f); }
+        for(int i=0;i+1<bposts.Count;i++) log($"bed_fence_rail_{i}",bposts[i]+Vector3.up*0.55f,bposts[i+1]+Vector3.up*0.55f,0.04f);
+        // narrow brick-red paved footpath along white apartment west face (~x 366.9 south wing / ~373 north)
+        for(float z=128f; z<=167f; z+=1.4f){
+            float x=(z<134f)?367.2f:373.8f;
+            if(z>=134f&&z<148f) x=Mathf.Lerp(367.2f,373.8f,(z-134f)/14f);
+            patch($"brick_fp_{z:F0}", x, z, 1.1f, 1.35f, brick, 0.025f);
+        }
+
+        // --- Val Vert join: grass island + white arrow on road ---
+        patch("valvert_grass_island", 372.5f, 176.8f, 4.5f, 2.2f, grass, 0.04f);
+        {
+            var arrow=GameObject.CreatePrimitive(PrimitiveType.Cube); Object.DestroyImmediate(arrow.GetComponent<Collider>());
+            arrow.name="valvert_white_arrow"; arrow.transform.SetParent(root.transform,false);
+            float ax=370.2f, az=178.0f; float y=gy(ax,az)+0.04f;
+            arrow.transform.position=new Vector3(ax,y,az);
+            arrow.transform.rotation=Quaternion.Euler(90f, 90f, 0f); // flat, pointing roughly along street/join
+            arrow.transform.localScale=new Vector3(1.8f, 0.7f, 0.02f);
+            var am=M("road_arrow_white",null,null,new Color(.92f,.92f,.90f),0.15f);
+            arrow.GetComponent<MeshRenderer>().sharedMaterial=am;
+            // simple chevron tip
+            var tip=GameObject.CreatePrimitive(PrimitiveType.Cube); Object.DestroyImmediate(tip.GetComponent<Collider>());
+            tip.name="valvert_arrow_tip"; tip.transform.SetParent(root.transform,false);
+            tip.transform.position=new Vector3(ax+1.1f,y,az); tip.transform.rotation=Quaternion.Euler(90f,45f,0f);
+            tip.transform.localScale=new Vector3(0.7f,0.7f,0.02f); tip.GetComponent<MeshRenderer>().sharedMaterial=am;
+        }
+        L($"ramp 9to13: path segs={pathPts.Count-1}, fence posts={fposts.Count}, sleepers={nSleep}");
+        RearPark91113();
+    }
+
+    // Lane around 9/11/13 + rear car park north of the block — footprints from OSM parking_aisle
+    // ways 1378070581 (rear loop) and 1378070590 (east N-S lane). No invented bays beyond OSM centreline.
+    public static void RearPark91113(){
+        var old=GameObject.Find("V3_RearPark91113"); if(old) Object.DestroyImmediate(old);
+        var root=new GameObject("V3_RearPark91113"); Physics.SyncTransforms();
+        var asp=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/asphalt_road.mat")
+            ?? AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/parking_lot.mat");
+        System.Func<float,float,float> gy=(x,z)=>{ var t=Terrain.activeTerrain; float ty=t.SampleHeight(new Vector3(x,0,z))+t.transform.position.y; if(Physics.Raycast(new Vector3(x,ty+5f,z),Vector3.down,out var hh,10f)&&!(hh.collider is TerrainCollider)) return Mathf.Max(ty,hh.point.y); return ty; };
+        System.Action<string,float,float,float,float,float> strip=(nm,x0,z0,x1,z1,w)=>{
+            float cx=(x0+x1)*0.5f, cz=(z0+z1)*0.5f; float dx=x1-x0, dz=z1-z0; float len=Mathf.Sqrt(dx*dx+dz*dz);
+            if(len<0.05f) return;
+            var q=GameObject.CreatePrimitive(PrimitiveType.Cube); Object.DestroyImmediate(q.GetComponent<Collider>());
+            q.name=nm; q.transform.SetParent(root.transform,false);
+            q.transform.position=new Vector3(cx, gy(cx,cz)+0.025f, cz);
+            q.transform.rotation=Quaternion.LookRotation(new Vector3(dx,0,dz));
+            q.transform.localScale=new Vector3(w,0.05f,len+0.08f);
+            if(asp) q.GetComponent<MeshRenderer>().sharedMaterial=asp;
+        };
+        // East lane OSM 1378070590: (397.56,178.9) → (398.27,113.36), ~6 m wide service
+        strip("east_lane", 397.56f,178.9f, 398.27f,113.36f, 5.5f);
+        // Rear parking aisle OSM 1378070581 centreline (full loop)
+        var rear=new Vector2[]{
+            new Vector2(371.42f,178.11f), new Vector2(371.43f,206.0f), new Vector2(372.16f,207.79f),
+            new Vector2(373.54f,208.75f), new Vector2(376.24f,209.65f), new Vector2(378.89f,209.7f),
+            new Vector2(382.33f,208.64f), new Vector2(383.33f,207.75f), new Vector2(385.4f,205.95f),
+            new Vector2(386.19f,203.88f), new Vector2(386.51f,200.77f), new Vector2(386.67f,189.82f)
+        };
+        for(int i=0;i+1<rear.Length;i++)
+            strip($"rear_aisle_{i}", rear[i].x,rear[i].y, rear[i+1].x,rear[i+1].y, 5.0f);
+        // Parking pad: fill between aisle west/east legs and building north wall (z~168.3) — OSM evidence of aisle enclosure
+        // West leg x~371.4 z 178→206; east leg x~386.6 z 190→206; south = building north ~z 168.3
+        {
+            float x0=371.4f+2.5f, x1=386.6f-2.5f, z0=168.5f, z1=205.5f;
+            // main pad as a few slabs (avoid covering aisle strips entirely)
+            float slabW=(x1-x0);
+            for(float z=z0; z<z1; z+=6f){
+                float zh=Mathf.Min(6f, z1-z);
+                var q=GameObject.CreatePrimitive(PrimitiveType.Cube); Object.DestroyImmediate(q.GetComponent<Collider>());
+                q.name=$"rear_pad_{z:F0}"; q.transform.SetParent(root.transform,false);
+                float cz=z+zh*0.5f, cx=(x0+x1)*0.5f;
+                q.transform.position=new Vector3(cx, gy(cx,cz)+0.02f, cz);
+                q.transform.localScale=new Vector3(slabW, 0.045f, zh);
+                if(asp) q.GetComponent<MeshRenderer>().sharedMaterial=asp;
+            }
+        }
+        L("rear park 9/11/13: east lane + OSM aisle loop + pad north of block");
+    }
+
+
+    // Batch2 photo refs (Nov 2026): nº9 entrance, ramp details, footpath, rear park lamps,
+    // Val Vert junction/crossing/sidewalk, wood edge paths. 2010-safe (skip clearly post-2010 signage text).
+    // No Aldi / car edits.
+    public static void Batch2Dress(){
+        var old=GameObject.Find("V3_Batch2Dress"); if(old) Object.DestroyImmediate(old);
+        var root=new GameObject("V3_Batch2Dress"); Physics.SyncTransforms();
+        var wood=M("log_fence",ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_diff_1k.jpg"),ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_nor_gl_1k.jpg",true),new Color(.55f,.48f,.40f),0.08f);
+        var metal=M("door_alum_grey",null,null,new Color(.42f,.44f,.46f),0.45f,0.35f);
+        var glass=M("door_glass",null,null,new Color(.55f,.62f,.70f,0.35f),0.9f,0f);
+        var plaster=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/plaster.mat");
+        var panel=M("facade_panel_grey",null,null,new Color(.62f,.63f,.64f),0.25f);
+        var asp=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/asphalt_leaves.mat")
+            ?? AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/asphalt_road.mat");
+        var pebble=M("pebble_bed",ValVertDress.Tex("Assets/ValVert/Ground/forest_leaves_02_diff.jpg"),null,new Color(1.4f,1.35f,1.3f),0.05f);
+        var hedge=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/hedge.mat")??wood;
+        var concrete=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/path_concrete.mat")
+            ?? M("agg_path",ValVertDress.Tex("Assets/ValVert/Ground/cc0/Concrete047A_col.jpg"),ValVertDress.Tex("Assets/ValVert/Ground/cc0/Concrete047A_nor.jpg",true),new Color(.75f,.74f,.70f),0.12f);
+        var rockM=MATS!=null&&MATS.ContainsKey("rock")?MATS["rock"]:wood;
+        var white=M("sign_white",null,null,new Color(.92f,.92f,.90f),0.2f);
+        var zebra=M("zebra_white",null,null,new Color(.95f,.95f,.93f),0.15f);
+        System.Func<float,float,float> gy=(x,z)=>{ var t=Terrain.activeTerrain; float ty=t.SampleHeight(new Vector3(x,0,z))+t.transform.position.y; if(Physics.Raycast(new Vector3(x,ty+5f,z),Vector3.down,out var hh,10f)&&!(hh.collider is TerrainCollider)) return Mathf.Max(ty,hh.point.y); return ty; };
+        System.Action<string,Vector3,Vector3,float> log=(nm,a,b,r)=>{ var g=GameObject.CreatePrimitive(PrimitiveType.Cylinder); Object.DestroyImmediate(g.GetComponent<Collider>()); g.name=nm; g.transform.SetParent(root.transform,false);
+            g.transform.position=(a+b)/2; g.transform.up=(b-a).normalized; g.transform.localScale=new Vector3(r*2,Vector3.Distance(a,b)/2,r*2); g.GetComponent<MeshRenderer>().sharedMaterial=wood; };
+        System.Action<string,Vector3,Vector3,Material> box=(nm,pos,sc,mat)=>{ var q=GameObject.CreatePrimitive(PrimitiveType.Cube); Object.DestroyImmediate(q.GetComponent<Collider>()); q.name=nm; q.transform.SetParent(root.transform,false); q.transform.position=pos; q.transform.localScale=sc; if(mat) q.GetComponent<MeshRenderer>().sharedMaterial=mat; };
+
+        // ===== 01: nº9 entrance (south wing facing parking/forecourt ~x 372, z 116) =====
+        // OSM apartments south face z~116; place entrance near center of south wall
+        float ex=374.5f, ez=116.15f; float ey=gy(ex,ez);
+        // canopy band
+        box("n9_canopy", new Vector3(ex, ey+2.55f, ez-0.15f), new Vector3(4.2f, 0.35f, 0.55f), metal);
+        // '9' plaque
+        box("n9_plaque", new Vector3(ex, ey+2.55f, ez-0.42f), new Vector3(0.28f, 0.28f, 0.04f), M("n9_blue",null,null,new Color(.12f,.22f,.55f),0.3f));
+        // round wall lamp
+        { var lamp=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(lamp.GetComponent<Collider>());
+          lamp.name="n9_wall_lamp"; lamp.transform.SetParent(root.transform,false);
+          lamp.transform.position=new Vector3(ex+0.85f, ey+2.55f, ez-0.45f); lamp.transform.localScale=Vector3.one*0.22f;
+          lamp.GetComponent<MeshRenderer>().sharedMaterial=M("globe_lamp",null,null,new Color(.95f,.95f,.90f),0.85f); }
+        // door leaf + angled panel + sidelights
+        box("n9_door", new Vector3(ex-0.15f, ey+1.1f, ez-0.12f), new Vector3(1.0f, 2.15f, 0.08f), metal);
+        box("n9_door_glass", new Vector3(ex-0.15f, ey+1.25f, ez-0.16f), new Vector3(0.75f, 1.5f, 0.02f), glass);
+        box("n9_door_angle", new Vector3(ex+0.25f, ey+1.15f, ez-0.14f), new Vector3(0.55f, 1.7f, 0.06f), metal);
+        box("n9_sideL", new Vector3(ex-0.95f, ey+1.2f, ez-0.12f), new Vector3(0.55f, 1.9f, 0.06f), metal);
+        box("n9_sideL_g", new Vector3(ex-0.95f, ey+1.25f, ez-0.15f), new Vector3(0.4f, 1.6f, 0.02f), glass);
+        box("n9_sideR", new Vector3(ex+0.95f, ey+1.2f, ez-0.12f), new Vector3(0.9f, 1.9f, 0.06f), metal);
+        box("n9_sideR_g", new Vector3(ex+0.95f, ey+1.25f, ez-0.15f), new Vector3(0.7f, 1.6f, 0.02f), glass);
+        box("n9_interphone", new Vector3(ex+0.55f, ey+1.35f, ez-0.18f), new Vector3(0.18f, 0.35f, 0.05f), M("interphone",null,null,new Color(.15f,.15f,.16f),0.4f));
+        // handle
+        box("n9_handle", new Vector3(ex-0.55f, ey+1.05f, ez-0.22f), new Vector3(0.04f, 0.55f, 0.04f), M("handle_brushed",null,null,new Color(.7f,.72f,.74f),0.6f));
+        // roller shutter window left of door
+        box("n9_shutter", new Vector3(ex-2.4f, ey+1.4f, ez-0.1f), new Vector3(1.3f, 1.4f, 0.08f), M("shutter_grey",null,null,new Color(.72f,.73f,.74f),0.25f));
+        // asphalt forecourt + kerbs + manhole + pebbles right + log fence left
+        box("n9_forecourt", new Vector3(ex, ey+0.02f, ez-3.2f), new Vector3(7.5f, 0.05f, 5.5f), asp);
+        box("n9_kerbL", new Vector3(ex-3.6f, ey+0.08f, ez-3.0f), new Vector3(0.2f, 0.15f, 5.0f), concrete);
+        box("n9_kerbR", new Vector3(ex+3.6f, ey+0.08f, ez-3.0f), new Vector3(0.2f, 0.15f, 5.0f), concrete);
+        box("n9_pebbles", new Vector3(ex+2.8f, ey+0.06f, ez-1.2f), new Vector3(1.4f, 0.08f, 2.2f), pebble);
+        box("n9_manhole", new Vector3(ex+1.8f, ey+0.045f, ez-2.5f), new Vector3(0.7f, 0.03f, 0.7f), M("mh",null,null,new Color(.35f,.36f,.37f),0.4f));
+        // log fence left of forecourt
+        for(int i=0;i<4;i++){ float zz=ez-1.5f-i*1.2f; float xx=ex-3.9f; var p0=new Vector3(xx,gy(xx,zz),zz);
+            log($"n9_fence_post_{i}", p0+Vector3.down*0.15f, p0+Vector3.up*0.85f, 0.06f);
+            if(i>0){ var prev=new Vector3(xx,gy(xx,zz+1.2f),zz+1.2f); foreach(var h in new[]{0.4f,0.75f}) log($"n9_fence_rail_{i}_{h}",prev+Vector3.up*h,p0+Vector3.up*h,0.045f); } }
+
+        // ===== 03: aggregate footpath along block west/base + kerb + shed + lamp + CCTV =====
+        for(float z=117f; z<=155f; z+=1.2f){
+            float x=366.9f; if(z>130f) x=Mathf.Lerp(366.9f,373.5f,Mathf.Clamp01((z-130f)/20f));
+            box($"agg_fp_{z:F0}", new Vector3(x, gy(x,z)+0.03f, z), new Vector3(1.35f, 0.05f, 1.15f), concrete);
+            box($"agg_kerb_{z:F0}", new Vector3(x-0.85f, gy(x,z)+0.12f, z), new Vector3(0.18f, 0.22f, 1.1f), concrete);
+        }
+        // grey panel strip along base (visual cue)
+        for(float z=118f; z<=150f; z+=2.0f){
+            float x=367.4f; if(z>130f) x=Mathf.Lerp(367.4f,374.0f,Mathf.Clamp01((z-130f)/20f));
+            box($"base_panel_{z:F0}", new Vector3(x+0.35f, gy(x,z)+0.7f, z), new Vector3(0.08f, 1.3f, 1.9f), panel);
+        }
+        box("path_shed", new Vector3(365.5f, gy(365.5f,154f)+0.7f, 154f), new Vector3(1.6f, 1.4f, 1.2f), panel);
+        { var lp=GameObject.CreatePrimitive(PrimitiveType.Cylinder); Object.DestroyImmediate(lp.GetComponent<Collider>());
+          lp.name="path_lamp"; lp.transform.SetParent(root.transform,false);
+          float lx=366.2f, lz=155.5f; float ly=gy(lx,lz);
+          lp.transform.position=new Vector3(lx, ly+2.2f, lz); lp.transform.localScale=new Vector3(0.12f,2.2f,0.12f);
+          lp.GetComponent<MeshRenderer>().sharedMaterial=metal;
+          var globe=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(globe.GetComponent<Collider>());
+          globe.name="path_lamp_globe"; globe.transform.SetParent(root.transform,false);
+          globe.transform.position=new Vector3(lx, ly+4.5f, lz); globe.transform.localScale=Vector3.one*0.35f;
+          globe.GetComponent<MeshRenderer>().sharedMaterial=M("globe_lamp2",null,null,new Color(.95f,.95f,.88f),0.85f); }
+        box("cctv", new Vector3(367.6f, gy(367.6f,130f)+3.2f, 130f), new Vector3(0.15f, 0.12f, 0.25f), white);
+
+        // ===== 08 refine: planted beds with log fences along block (flat ramp left) =====
+        for(int b=0;b<3;b++){
+            float bz=122f+b*6f; float bx=368.2f;
+            box($"plant_bed_{b}", new Vector3(bx, gy(bx,bz)+0.05f, bz), new Vector3(2.2f, 0.15f, 3.5f), pebble);
+            var posts=new List<Vector3>();
+            foreach(var (px,pz) in new[]{(bx-1.0f,bz-1.5f),(bx+1.0f,bz-1.5f),(bx+1.0f,bz+1.5f),(bx-1.0f,bz+1.5f)})
+                posts.Add(new Vector3(px,gy(px,pz),pz));
+            for(int i=0;i<posts.Count;i++){ var p0=posts[i]; log($"bed2_post_{b}_{i}",p0+Vector3.down*0.1f,p0+Vector3.up*0.65f,0.05f);
+                var p1=posts[(i+1)%posts.Count]; log($"bed2_rail_{b}_{i}",p0+Vector3.up*0.5f,p1+Vector3.up*0.5f,0.04f); }
+        }
+        // dual fence on flat ramp section (east side of path too) — photo 08
+        for(float z=132f; z<=146f; z+=1.4f){
+            float x=364.2f; var p0=new Vector3(x,gy(x,z),z);
+            log($"flat_fenceE_post_{z:F0}", p0+Vector3.down*0.15f, p0+Vector3.up*0.9f, 0.06f);
+            if(z>132.5f){ var prev=new Vector3(x,gy(x,z-1.4f),z-1.4f); foreach(var h in new[]{0.4f,0.78f}) log($"flat_fenceE_rail_{z:F0}_{h}",prev+Vector3.up*h,p0+Vector3.up*h,0.045f); }
+        }
+
+        // ===== 04: rear park globe lamps (no cars) along OSM aisle =====
+        foreach(var (lx,lz) in new[]{(373f,185f),(373f,195f),(373f,205f),(382f,200f),(382f,190f)}){
+            var pole=GameObject.CreatePrimitive(PrimitiveType.Cylinder); Object.DestroyImmediate(pole.GetComponent<Collider>());
+            pole.name=$"rear_globe_pole_{lx}_{lz}"; pole.transform.SetParent(root.transform,false);
+            float y=gy(lx,lz); pole.transform.position=new Vector3(lx,y+2.0f,lz); pole.transform.localScale=new Vector3(0.1f,2.0f,0.1f);
+            pole.GetComponent<MeshRenderer>().sharedMaterial=metal;
+            var g=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(g.GetComponent<Collider>());
+            g.name=$"rear_globe_{lx}_{lz}"; g.transform.SetParent(root.transform,false);
+            g.transform.position=new Vector3(lx,y+4.15f,lz); g.transform.localScale=Vector3.one*0.4f;
+            g.GetComponent<MeshRenderer>().sharedMaterial=M("globe_w",null,null,new Color(.95f,.95f,.9f),0.85f);
+        }
+
+        // ===== 05/07: Val Vert junction — hedge, ivy-tree proxy, raised zebra crossing, simple sign post =====
+        // Crossing near OSM Val Vert x~364-371 z~178
+        for(int i=0;i<5;i++){
+            float x=360f+i*1.6f;
+            box($"zebra_{i}", new Vector3(x, gy(x,178.1f)+0.04f, 178.1f), new Vector3(1.1f, 0.03f, 3.2f), zebra);
+        }
+        // raised plateau tint under crossing
+        box("crossing_plateau", new Vector3(364f, gy(364f,178.1f)+0.02f, 178.1f), new Vector3(9f, 0.06f, 4.5f), M("plateau_tan",null,null,new Color(.62f,.55f,.42f),0.1f));
+        // hedge opposite
+        for(float x=350f; x<=375f; x+=1.3f){
+            float z=182.5f; box($"vv_hedge_{x:F0}", new Vector3(x, gy(x,z)+1.0f, z), new Vector3(1.2f, 2.0f, 0.7f), hedge);
+        }
+        // sign post (generic 2010 pole + blank white plate — no modern FIN DE ZONE 30 lettering)
+        box("vv_sign_pole", new Vector3(358.5f, gy(358.5f,176.5f)+1.6f, 176.5f), new Vector3(0.08f, 3.2f, 0.08f), metal);
+        box("vv_sign_plate", new Vector3(358.5f, gy(358.5f,176.5f)+2.8f, 176.5f), new Vector3(0.7f, 0.55f, 0.04f), white);
+        // direction fingers
+        box("vv_dir1", new Vector3(355.0f, gy(355f,177f)+2.6f, 177f), new Vector3(1.2f, 0.18f, 0.05f), M("dir_grey",null,null,new Color(.55f,.55f,.52f),0.25f));
+        box("vv_dir2", new Vector3(355.0f, gy(355f,177f)+2.35f, 177f), new Vector3(1.0f, 0.18f, 0.05f), M("dir_grey2",null,null,new Color(.5f,.5f,.48f),0.25f));
+        // verge boulders at crossing (photo 07)
+        var rockPrefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/InnerverseInteractive/Ultimate Nature – Starter/Environment/Rocks/Forest/Prefabs/UNS_Standard_Rock_03.prefab");
+        foreach(var (bx,bz,sc) in new[]{(368.5f,175.2f,1.0f),(370.2f,174.8f,0.85f),(372.0f,175.5f,1.1f)}){
+            GameObject bo;
+            if(rockPrefab!=null){ bo=(GameObject)Object.Instantiate(rockPrefab); foreach(var c in bo.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c); }
+            else { bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>()); if(rockM) bo.GetComponent<MeshRenderer>().sharedMaterial=rockM; }
+            bo.name=$"vv_verge_boulder_{bx}"; bo.transform.SetParent(root.transform,false);
+            bo.transform.localScale=new Vector3(sc,sc*0.65f,sc*0.9f);
+            float gy0=gy(bx,bz); var rend=bo.GetComponentsInChildren<MeshRenderer>();
+            Bounds bb=rend.Length>0?rend[0].bounds:new Bounds(bo.transform.position,Vector3.one);
+            foreach(var r in rend) bb.Encapsulate(r.bounds);
+            bo.transform.position=new Vector3(bx, gy0 - bb.size.y*0.3f, bz);
+        }
+        // small grey utility box (photo 07)
+        box("vv_util_box", new Vector3(356.5f, gy(356.5f,175.5f)+0.35f, 175.5f), new Vector3(0.7f, 0.7f, 0.5f), panel);
+
+        // ===== 06: Val Vert sidewalk strip under hedge (west of road toward woods) =====
+        for(float x=340f; x<=358f; x+=1.5f){
+            float z=176.2f;
+            box($"vv_sidewalk_{x:F0}", new Vector3(x, gy(x,z)+0.03f, z), new Vector3(1.4f, 0.05f, 1.6f), asp);
+            box($"vv_side_hedge_{x:F0}", new Vector3(x, gy(x,z+2.2f)+1.1f, z+2.2f), new Vector3(1.3f, 2.2f, 0.6f), hedge);
+        }
+
+        // ===== 09: earth/gravel path into trees (near woods / parking edge) =====
+        for(float t=0;t<=1.001f;t+=0.08f){
+            float x=Mathf.Lerp(355f,348f,t); float z=Mathf.Lerp(128f,145f,t);
+            box($"earth_path9_{t:F2}", new Vector3(x, gy(x,z)+0.025f, z), new Vector3(1.0f, 0.04f, 1.3f),
+                AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/path_dirt.mat")??pebble);
+        }
+
+        // ===== 10: extra mossy boulders at car-park edge (complements LogStairsDress row) =====
+        foreach(var (bx,bz,sc) in new[]{(366.5f,126.8f,1.2f),(367.8f,125.0f,0.95f),(378.0f,118.0f,1.05f)}){
+            GameObject bo;
+            if(rockPrefab!=null){ bo=(GameObject)Object.Instantiate(rockPrefab); foreach(var c in bo.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c); }
+            else { bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>()); if(rockM) bo.GetComponent<MeshRenderer>().sharedMaterial=rockM; }
+            bo.name=$"park_edge_boulder_{bx}"; bo.transform.SetParent(root.transform,false);
+            bo.transform.localScale=new Vector3(sc,sc*0.6f,sc*0.85f); bo.transform.rotation=Quaternion.Euler(8,40,-10);
+            float gy0=gy(bx,bz); var rend=bo.GetComponentsInChildren<MeshRenderer>();
+            Bounds bb=rend.Length>0?rend[0].bounds:new Bounds(bo.transform.position,Vector3.one);
+            foreach(var r in rend) bb.Encapsulate(r.bounds);
+            bo.transform.position=new Vector3(bx, gy0 - bb.size.y*0.32f, bz);
+        }
+        L("batch2 dress: n9 entrance, agg path, rear lamps, Val Vert crossing/hedge, earth path, park-edge boulders");
+    }
+
     public static Terrain East;
     public static Terrain BuildEast(Terrain main){
         int R=1025; byte[] raw=File.ReadAllBytes(SRC+"east_height.raw"); var h=new float[R,R];
