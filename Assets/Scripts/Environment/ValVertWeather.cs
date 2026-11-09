@@ -23,7 +23,7 @@ public class ValVertWeather : MonoBehaviour
     public List<SnowTint> snowTints = new List<SnowTint>();
     // snow shells: copies of the upward-facing triangles of bark / evergreen / bush meshes, rendered with an alpha-clipped snow
     // material whose cutoff follows SnowCover (progressive accumulation only on surfaces facing the sky)
-    [Serializable] public class ShellSrc { public Material src; public Material snow; public float minUp = 0.3f; public bool leaf; public float offset = 0.015f; }
+    [Serializable] public class ShellSrc { public Material src; public Material snow; public float minUp = 0.3f; public bool leaf; public float offset = 0.015f; public float steep = 0.5f; }
     public List<ShellSrc> shellSrcs = new List<ShellSrc>();
     [NonSerialized] List<Renderer> shells = new List<Renderer>(); [NonSerialized] List<(LODGroup, LOD[])> lodBackup = new List<(LODGroup, LOD[])>(); [NonSerialized] float shellCover = -1f;
     public int ShellCount => shells.Count;
@@ -81,7 +81,7 @@ public class ValVertWeather : MonoBehaviour
         for (int i = 0; i + 2 < t.Length; i += 3)
         {
             Vector3 a = v[t[i]], b = v[t[i + 1]], c = v[t[i + 2]]; var n = Vector3.Cross(b - a, c - a); if (n.sqrMagnitude < 1e-14f) continue; n.Normalize();
-            float d = Vector3.Dot(n, up); if (s.leaf) { d = Mathf.Abs(d); uint hh = (uint)i * 2654435761u; hh ^= hh >> 15; float rnd = (hh & 1023) / 1023f; if (d < s.minUp + rnd * 0.5f) continue; }   // foliage: steeper cards keep snow less often
+            float d = Vector3.Dot(n, up); if (s.leaf) { d = Mathf.Abs(d); uint hh = (uint)i * 2654435761u; hh ^= hh >> 15; float rnd = (hh & 1023) / 1023f; if (d < s.minUp + rnd * s.steep) continue; }   // foliage: steeper cards keep snow less often
             else if (d < s.minUp) continue;
             for (int k = 0; k < 3; k++) { int idx = t[i + k]; if (!remap.TryGetValue(idx, out int j)) { j = nv.Count; remap[idx] = j; nv.Add(v[idx] + up * off); nu.Add(idx < uv.Length ? uv[idx] : Vector2.zero); } nt.Add(j); }
         }

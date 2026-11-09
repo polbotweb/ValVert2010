@@ -28,6 +28,7 @@ public static class ValVertPOV {
             Place(new Vector3(349.5f,0,136f),new Vector3(0.5f,0.6f,0.6f)); Shot("dbg_branches_snow.png",wm,wd,12.75f); Place(P,V); Shot("pov_spring_2midday.png",4,20,13.5f);
             int cm=0,cd=0; for(int m=12;m<=14&&cm==0;m++) for(int d=1;d<=28;d++){ int mo=(m-1)%12+1; clk.Set(mo,d,12.75f); w.Settle(clk.Now); if(w.SnowCover<0.02f&&w.Current==ValVertWeather.Kind.Clear){ cm=mo; cd=d; break; } }
             if(cm>0) Shot("extra_winter_clear_nosnow.png",cm,cd,12.75f); }
+        if(!only) Shot("_warmup.png",wm,wd,12.75f);
         if(!only) foreach(var d in new[]{(4,20,"spring"),(7,15,"summer"),(10,20,"autumn"),(wm,wd,"winter")}){
             float rise=6,set=18,noon=12,maxAlt=-90,prev=-90;
             for(float h=0;h<24;h+=1f/12f){ clk.Set(d.Item1,d.Item2,h); float a=clk.SunAltitudeDeg; if(prev<0&&a>=0) rise=h; if(prev>=0&&a<0) set=h; if(a>maxAlt){maxAlt=a;noon=h;} prev=a; }
@@ -44,5 +45,25 @@ public static class ValVertPOV {
         w.ClearShells();
         // no save: render-only (avoids persisting runtime weather/season state into assets)
         Debug.Log("[VV] POV DONE");
+    }
+    // verification frames for the user corrections: stairs approach (door/Vigik, log fence, boulder), Aldi parallel parking (top + ground, day/night)
+    public static void Verify(){
+        UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/ValVert.unity");
+        var go=ValVertEnvWire.Wire(); clk=go.GetComponent<ValVertClock>(); sea=go.GetComponent<ValVertSeasons>(); sl=go.GetComponent<ValVertStreetLights>(); w=go.GetComponent<ValVertWeather>();
+        cam=new GameObject("povcam").AddComponent<Camera>(); cam.fieldOfView=65; cam.nearClipPlane=0.05f; sl.viewer=cam.transform; w.viewer=cam.transform; w.BuildShells();
+        const string V="/workspace/valvert/verify/"; System.IO.Directory.CreateDirectory(V);
+        System.Action<string,int,int,float> S=(n,mo,d,h)=>{ clk.Set(mo,d,h); w.Tick(); sea.Tick(); clk.Apply(); sl.Tick(); w.Prewarm(4f);
+            var rt=new RenderTexture(1600,900,24); cam.targetTexture=rt; cam.Render(); RenderTexture.active=rt; var tx=new Texture2D(1600,900,TextureFormat.RGB24,false); tx.ReadPixels(new Rect(0,0,1600,900),0,0);
+            System.IO.File.WriteAllBytes(V+n,tx.EncodeToPNG()); RenderTexture.active=null; cam.targetTexture=null; UnityEngine.Object.DestroyImmediate(rt); UnityEngine.Object.DestroyImmediate(tx); Debug.Log("[VV] VERIFY "+n); };
+        w.Force(ValVertWeather.Kind.Clear);
+        cam.fieldOfView=70; Place(new Vector3(366.3f,0,131.6f),new Vector3(-1f,0.30f,0.18f)); cam.transform.position+=Vector3.down*0.1f; S("_warm.png",10,20,13f);
+        S("stairs_autumn_1300.png",10,20,13f); S("stairs_summer_1300.png",7,15,13f); S("stairs_spring_1300.png",4,20,13f);
+        cam.fieldOfView=55; Place(new Vector3(363.5f,0,131.0f),new Vector3(0.05f,0.15f,1f)); S("door_vigik_closeup.png",10,20,13f);
+        cam.fieldOfView=60; Place(new Vector3(363.8f,0,122.6f),new Vector3(-0.35f,0.02f,0.94f)); S("stair_approach_fence_boulder.png",10,20,13f);  // photo angle: boulder+log fence left foreground, door ahead-right, stairs ahead
+        cam.fieldOfView=65; Place(new Vector3(470.5f,0,40.0f),new Vector3(0.25f,-0.08f,1f)); S("aldi_ground_day.png",10,20,11f); S("aldi_ground_night.png",10,20,22.5f);
+        Place(new Vector3(492f,0,61f),new Vector3(-1f,-0.12f,0.05f)); S("aldi_ground_east_day.png",10,20,11f); Place(new Vector3(492f,0,55f),new Vector3(-1f,-0.08f,0.15f)); S("aldi_ground_lot_day.png",10,20,12f);
+        cam.orthographic=true; cam.orthographicSize=24f; cam.transform.position=new Vector3(478f,80f,61f); cam.transform.rotation=Quaternion.Euler(90,0,0); cam.farClipPlane=200; S("aldi_topdown.png",10,20,12.5f);
+        cam.transform.position=new Vector3(362.5f,60f,131f); cam.orthographicSize=9f; S("stairs_topdown.png",10,20,12.5f);
+        w.Force(ValVertWeather.Kind.Auto); w.ClearShells(); UnityEngine.Object.DestroyImmediate(cam.gameObject); Debug.Log("[VV] VERIFY DONE");
     }
 }

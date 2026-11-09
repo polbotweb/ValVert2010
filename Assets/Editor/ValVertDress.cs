@@ -54,6 +54,8 @@ public static class ValVertDress {
     static GameObject EF(string rel,string name){ var a=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Realistic Tree/Prefabs/URP/"+rel+".prefab"); if(!a) return null;
         var root=new GameObject(name); var inst=(GameObject)PrefabUtility.InstantiatePrefab(a); PrefabUtility.UnpackPrefabInstance(inst,PrefabUnpackMode.Completely,InteractionMode.AutomatedAction); inst.transform.SetParent(root.transform,false);
         foreach(var ps in inst.GetComponentsInChildren<ParticleSystem>(true)){ if(ps.gameObject==inst){ var pr=ps.GetComponent<ParticleSystemRenderer>(); Object.DestroyImmediate(ps); if(pr) Object.DestroyImmediate(pr); } else Object.DestroyImmediate(ps.gameObject); }
+        // vendor bug: some URP prefabs reference HDRP materials (not imported) -> swap missing slots for the URP material of the same name / tree bark
+        foreach(var r in inst.GetComponentsInChildren<Renderer>(true)){ var ms=r.sharedMaterials; bool fix=false; for(int i=0;i<ms.Length;i++) if(!ms[i]){ var bark=inst.GetComponentsInChildren<Renderer>(true).SelectMany(x=>x.sharedMaterials).FirstOrDefault(m=>m&&AssetDatabase.GetAssetPath(m).Contains("/URP/Bark/")); ms[i]=bark; fix=true; } if(fix){ r.sharedMaterials=ms; L($"EF {name}: replaced missing material slot on {r.name}"); } }
         var src=inst.GetComponentInChildren<LODGroup>(); LOD[] lods=src?src.GetLODs():new[]{new LOD(0.02f,inst.GetComponentsInChildren<Renderer>())}; if(src) Object.DestroyImmediate(src);
         if(lods.Length>0) lods[lods.Length-1].screenRelativeTransitionHeight=Mathf.Min(lods[lods.Length-1].screenRelativeTransitionHeight,0.008f);
         var lg=root.AddComponent<LODGroup>(); lg.SetLODs(lods); lg.RecalculateBounds();

@@ -26,7 +26,9 @@ public class ValVertClock : MonoBehaviour
     public Light sun;          // directional
     public Light moon;         // directional, created if missing
     public Material daySkybox; // existing HDRI/procedural sky
-    public Material overcastSkybox; // grey cloud-deck panorama used when the sky is fully overcast with precipitation/fog
+    public Material overcastSkybox;
+    public Material blendSkybox;   // ValVert/SkyBlend: clear panorama -> overcast deck, cross-faded by cloud cover (preferred)
+    public float skyBaseExposure = 0.9f; public Color skyBaseTint = new Color(.62f, .63f, .64f); // grey cloud-deck panorama used when the sky is fully overcast with precipitation/fog
     public Color nightAmbient = new Color(0.030f, 0.040f, 0.070f);   // starlight/airglow + urban skyglow (Annecy basin)
     public Color dayAmbient = new Color(0.58f, 0.57f, 0.54f);   // neutral-warm (removed blue cast)
     public float sunMaxIntensity = 1.25f, moonIntensity = 0.12f;
@@ -154,7 +156,7 @@ public class ValVertClock : MonoBehaviour
             moon.transform.rotation = Quaternion.Euler(Mathf.Max(MoonAltitudeDeg, 2f), MoonAzimuthDeg + 180f, 0f);
             moon.intensity = (1f - cloudCover * 0.85f) * moonIntensity * MoonIllumination * Mathf.Clamp01(MoonAltitudeDeg / 10f) * (1f - Daylight01);
             moon.enabled = moon.intensity > 0.002f;
-            moon.shadows = moon.enabled ? LightShadows.Soft : LightShadows.None;
+            moon.shadows = moon.enabled ? LightShadows.Soft : LightShadows.None; moon.shadowBias = 0.25f; moon.shadowNormalBias = 1.6f;   // weak grazing moonlight: stronger bias avoids striped self-shadowing on alpha-cut leaves
         }
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
         Color dusk = new Color(.30f, .24f, .26f);
@@ -167,7 +169,15 @@ public class ValVertClock : MonoBehaviour
         RenderSettings.fogColor = Color.Lerp(new Color(.03f, .035f, .045f), Color.Lerp(new Color(.72f, .72f, .70f), new Color(.62f, .63f, .64f), cloudCover), Daylight01);
         RenderSettings.fog = true; RenderSettings.fogMode = FogMode.ExponentialSquared;
         RenderSettings.fogDensity = 0.0008f + 0.004f * cloudCover * precip + 0.045f * fogAmount;   // light haze .. valley fog (~100 m visibility)
-        if (daySkybox && overcastSkybox)
+        if (blendSkybox)
+        {
+            if (RenderSettings.skybox != blendSkybox) RenderSettings.skybox = blendSkybox;
+            float ov = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.45f, 0.97f, cloudCover));
+            float skyE = Mathf.Lerp(0.03f + 0.05f * MoonIllumination * Mathf.Clamp01(MoonAltitudeDeg / 15f) * (1f - cloudCover), Mathf.Lerp(1f, 0.7f, cloudCover * precip), sky);
+            blendSkybox.SetFloat("_Blend", ov); blendSkybox.SetFloat("_Exposure", skyBaseExposure * skyE);
+            blendSkybox.SetColor("_Tint", Color.Lerp(new Color(.30f, .38f, .62f), skyBaseTint, sky));
+        }
+        else         if (daySkybox && overcastSkybox)
         {
             bool oc = cloudCover > 0.88f && (precip > 0.15f || fogAmount > 0.4f);
             var want = oc ? overcastSkybox : daySkybox;
@@ -187,7 +197,7 @@ public class ValVertClock : MonoBehaviour
 
     void OnDisable()
     {
-        if (daySkybox && RenderSettings.skybox == overcastSkybox) RenderSettings.skybox = daySkybox;
+        if (daySkybox && (RenderSettings.skybox == overcastSkybox || (blendSkybox && RenderSettings.skybox == blendSkybox))) RenderSettings.skybox = daySkybox;
         if (expCached && RenderSettings.skybox && RenderSettings.skybox.HasProperty("_Exposure")) RenderSettings.skybox.SetFloat("_Exposure", baseSkyExposure); if (tintCached && RenderSettings.skybox) RenderSettings.skybox.SetColor("_Tint", baseTint);
         if (Instance == this) Instance = null;
     }

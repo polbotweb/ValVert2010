@@ -10,6 +10,15 @@ public static class ValVertSeason {
     public static Season SelSeason => (Season)System.Enum.Parse(typeof(Season),Arg("-vvSeason","VV_SEASON","autumn"),true);
     public static Weather SelWeather => (Weather)System.Enum.Parse(typeof(Weather),Arg("-vvWeather","VV_WEATHER","dry"),true);
     static Material Mt(string n)=>AssetDatabase.LoadAssetAtPath<Material>(M+n+".mat");
+    // pristine (shipped) colour/cutoff per foliage material: never re-capture from saved materials (season state drifts into them)
+    static bool RestTable(ValVertSeasons.Foliage f,out Color c,out float cut){
+        string n=f.mat.name; c=Color.white; cut=0.45f;
+        var ef=new System.Collections.Generic.Dictionary<string,float>{{"Ash_Leaves_1",0.116f},{"Ash_Leaves_2",0.575f},{"Birch_Leaves_1",0.11f},{"Birch_Leaves_2",0.105f},{"Birch_Leaves_3",0.081f},{"Chestnut_1",0.088f},{"Chestnut_2",0.088f},{"Chestnut_3",0.088f},{"Spruce_1",0.518f},{"Spruce_2",0.495f}};
+        if(ef.TryGetValue(n,out cut)){ c=new Color(1,1,1,0); return true; }
+        if(n=="UNS_Spruce_Tree_Branch"){ c=new Color(.32f,.43f,.22f,1); cut=0.5f; return true; }
+        if(n=="UNS_Bush_Leaves"){ c=new Color(.27f,.37f,.15f,1); cut=0.5f; return true; }
+        if(f.colorProp=="_BaseColor"&&!n.StartsWith("UNS")){ c=Color.white; cut=0.45f; return true; }
+        return false; }
     static Texture2D Tx(string p)=>AssetDatabase.LoadAssetAtPath<Texture2D>(p);
     static void Set(string mat,string tex,string nor=null,Color? c=null){ var m=Mt(mat); if(!m) return; var t=Tx(tex); if(t) m.SetTexture("_BaseMap",t); if(nor!=null){ var n=Tx(nor); if(n){ m.SetTexture("_BumpMap",n); m.EnableKeyword("_NORMALMAP"); } } if(c.HasValue) m.SetColor("_BaseColor",c.Value); EditorUtility.SetDirty(m); }
     static readonly System.Collections.Generic.Dictionary<string,Color> baseCol=new System.Collections.Generic.Dictionary<string,Color>();
@@ -43,6 +52,15 @@ public static class ValVertEnvWire {
     const string M="Assets/ValVert/Mats/", GEN="Assets/ValVert/Gen/", G="Assets/ValVert/Ground/", T="Assets/ValVert/Veg/tex/", P6="Assets/ValVert/Veg/pilot6/";
     static Texture2D Tx(string p)=>AssetDatabase.LoadAssetAtPath<Texture2D>(p);
     static Material Mt(string n)=>AssetDatabase.LoadAssetAtPath<Material>(M+n+".mat");
+    // pristine (shipped) colour/cutoff per foliage material: never re-capture from saved materials (season state drifts into them)
+    static bool RestTable(ValVertSeasons.Foliage f,out Color c,out float cut){
+        string n=f.mat.name; c=Color.white; cut=0.45f;
+        var ef=new System.Collections.Generic.Dictionary<string,float>{{"Ash_Leaves_1",0.116f},{"Ash_Leaves_2",0.575f},{"Birch_Leaves_1",0.11f},{"Birch_Leaves_2",0.105f},{"Birch_Leaves_3",0.081f},{"Chestnut_1",0.088f},{"Chestnut_2",0.088f},{"Chestnut_3",0.088f},{"Spruce_1",0.518f},{"Spruce_2",0.495f}};
+        if(ef.TryGetValue(n,out cut)){ c=new Color(1,1,1,0); return true; }
+        if(n=="UNS_Spruce_Tree_Branch"){ c=new Color(.32f,.43f,.22f,1); cut=0.5f; return true; }
+        if(n=="UNS_Bush_Leaves"){ c=new Color(.27f,.37f,.15f,1); cut=0.5f; return true; }
+        if(f.colorProp=="_BaseColor"&&!n.StartsWith("UNS")){ c=Color.white; cut=0.45f; return true; }
+        return false; }
     public static GameObject Wire(){
         var go=GameObject.Find("ValVertEnvironment")??new GameObject("ValVertEnvironment");
         var clk=go.GetComponent<ValVertClock>()??go.AddComponent<ValVertClock>();
@@ -74,7 +92,7 @@ public static class ValVertEnvWire {
           foreach(var t in Terrain.activeTerrains) foreach(var l in t.terrainData.terrainLayers){ if(!l||sea.wetLayers.Exists(x=>x.layer==l)) continue;
             sea.wetLayers.Add(prev.TryGetValue(l,out var pw)?pw:new ValVertSeasons.WetLayer{layer=l,restMax=l.diffuseRemapMax,restSmooth=l.smoothness}); } }
         foreach(var n in new[]{"asphalt_road","road","parking_lot","asphalt_leaves","leafground","forest_fg02","stair_earth","path_concrete"}){ var m=Mt(n); if(m) sea.wetSurfaces.Add(new ValVertSeasons.Wet{mat=m}); }
-        foreach(var f in sea.foliage) if(f.mat){ f.hasRest=true; if(prevRest.TryGetValue(f.mat,out var pr)){ f.restColor=pr.Item1; f.restCut=pr.Item2; continue; } f.restColor=f.mat.HasProperty(f.colorProp)?f.mat.GetColor(f.colorProp):Color.white; f.restCut=f.mat.HasProperty(f.cutProp)?f.mat.GetFloat(f.cutProp):0.45f; if(f.colorProp=="_BaseColor"&&!f.mat.name.StartsWith("UNS")){ f.restColor=Color.white; f.restCut=0.45f; } }
+        foreach(var f in sea.foliage) if(f.mat){ f.hasRest=true; if(RestTable(f,out var rc,out var rcut)){ f.restColor=rc; f.restCut=rcut; continue; } if(prevRest.TryGetValue(f.mat,out var pr)){ f.restColor=pr.Item1; f.restCut=pr.Item2; continue; } f.restColor=f.mat.HasProperty(f.colorProp)?f.mat.GetColor(f.colorProp):Color.white; f.restCut=f.mat.HasProperty(f.cutProp)?f.mat.GetFloat(f.cutProp):0.45f; if(f.colorProp=="_BaseColor"&&!f.mat.name.StartsWith("UNS")){ f.restColor=Color.white; f.restCut=0.45f; } }
         clk.month=10; clk.day=20; clk.hour=11f; clk.timeScale=60f;   // default: autumn 2010, late morning (reference photos)
         ValVertWeatherWire.Wire(go);
         sl.Collect(); Debug.Log("[VV] environment wired: foliage "+sea.foliage.Count+" overlays "+sea.overlays.Count+" wet "+sea.wetSurfaces.Count);
@@ -175,7 +193,7 @@ public static class ValVertWeatherWire {
             var st=Steps(src,asph); if(st!=null) w.snowLayers.Add(new ValVertWeather.SnowLayer{layer=l,steps=st,factor=asph?0.5f:1f}); }
         // (uniform colour tints replaced by snow shells: tint was overwritten each tick by ValVertSeasons and could not follow surface orientation)
         w.shellSrcs.Clear();
-        System.Action<Material,bool> Sh=(m,leaf)=>{ if(!m||w.shellSrcs.Exists(x=>x.src==m)) return; var sm=ShellMat(m,leaf); if(sm) w.shellSrcs.Add(new ValVertWeather.ShellSrc{src=m,snow=sm,leaf=leaf,minUp=leaf?0.05f:0.3f,offset=leaf?0.02f:0.025f}); };
+        System.Action<Material,bool> Sh=(m,leaf)=>{ if(!m||w.shellSrcs.Exists(x=>x.src==m)) return; var sm=ShellMat(m,leaf); if(sm) w.shellSrcs.Add(new ValVertWeather.ShellSrc{src=m,snow=sm,leaf=leaf,minUp=leaf?0.05f:0.3f,offset=leaf?0.02f:0.025f,steep=m.name.StartsWith("laurel")?0.32f:0.5f}); };
         foreach(var guid in AssetDatabase.FindAssets("t:Material",new[]{"Assets"})){ var p=AssetDatabase.GUIDToAssetPath(guid); var n=System.IO.Path.GetFileNameWithoutExtension(p).ToLower(); var pl=p.ToLower();
             if(pl.Contains("/demo")||pl.Contains("/gen/snow")||pl.Contains("hdrp")) continue;
             bool barkEF=pl.Contains("realistic tree/source/materials/urp/bark/");
@@ -200,7 +218,10 @@ public static class ValVertWeatherWire {
                 var sp=PrefabUtility.SaveAsPrefabAsset(inst,TD+p.prefab.name+"_snow.prefab"); Object.DestroyImmediate(inst);
                 w.treeVariants.Add(new ValVertWeather.TreeVariant{orig=p.prefab,snow=sp}); } }
         // overcast sky deck for snowfall / rain / fog
-        var clk=go.GetComponent<ValVertClock>(); if(clk) clk.overcastSkybox=OvercastSky();
+        var clk=go.GetComponent<ValVertClock>(); if(clk){ clk.overcastSkybox=OvercastSky();
+            var bp="Assets/ValVert/Mats/sky_blend.mat"; var bm=AssetDatabase.LoadAssetAtPath<Material>(bp); var sh=Shader.Find("ValVert/SkyBlend");
+            if(sh){ if(!bm){ bm=new Material(sh); AssetDatabase.CreateAsset(bm,bp); } var day=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/sky.mat");
+                bm.SetTexture("_TexA",day.GetTexture("_MainTex")); bm.SetTexture("_TexB",clk.overcastSkybox.GetTexture("_MainTex")); bm.SetFloat("_Rotation",day.GetFloat("_Rotation")); EditorUtility.SetDirty(bm); clk.blendSkybox=bm; clk.daySkybox=day; } }
         Debug.Log($"[VV] weather wired: snowMats {w.snowMats.Count} snowLayers {w.snowLayers.Count} shellSrcs {w.shellSrcs.Count} treeVariants {w.treeVariants.Count}");
     }
 }
