@@ -23,96 +23,259 @@ public static class ValVertWoods {
         if(lit==null) return;
         if(m.shader==null || m.shader.name.Contains("InternalError") || !m.shader.isSupported) m.shader=lit;
     }
-    static void ConvertLeavesUrpInPlace(Material m, Material leafFallback, Material barkFallback, bool wantBark){
-        if(!m) return;
-        var lit=Shader.Find("Universal Render Pipeline/Lit"); if(lit==null) return;
-        string sn=m.shader?m.shader.name:"";
-        bool isLeaves=sn.Contains("Leaves")||sn.Contains("Nature")||sn.Contains("InternalError")||sn.Contains("Hidden/")||!m.shader.isSupported;
-        if(!isLeaves && sn.Contains("Universal Render Pipeline/Lit")){
-            // already Lit — ensure cutout keywords for leaf slots
-            if(!wantBark){ m.SetFloat("_AlphaClip",1); m.SetFloat("_Cutoff",0.4f); m.EnableKeyword("_ALPHATEST_ON"); m.renderQueue=2450; }
-            return;
-        }
-        // Preserve best albedo from ShaderGraph Texture2D_* or _BaseMap/_MainTex before swapping shader
-        Texture2D keep=null;
-        if(m.HasProperty("_BaseMap")) keep=m.GetTexture("_BaseMap") as Texture2D;
-        if(!keep && m.HasProperty("_MainTex")) keep=m.GetTexture("_MainTex") as Texture2D;
-        foreach(var id in m.GetTexturePropertyNames()){
-            if(keep!=null) break;
-            if(id.StartsWith("Texture2D_")||id.Contains("Albedo")||id.Contains("Base")||id.Contains("Leaf")||id.Contains("Color")){
-                var tx=m.GetTexture(id) as Texture2D; if(tx) keep=tx;
+    // EF Leaves_URP ShaderGraph property refs (must match ValVertWeatherWire foliage adapters)
+    const string EF_COL="Color_118e71b9c10c4eed91eea60a3ba568b1";
+    const string EF_TEX="Texture2D_bfb8accc76d9413bad4df77aa898cfaf";
+    const string EF_CUT="Vector1_7c4b0ab460c949e098609f36717c4248";
+
+    public static Shader LeavesUrpShader(){
+        var sh=Shader.Find("Shader Graphs/Leaves_URP");
+        if(!sh) sh=AssetDatabase.LoadAssetAtPath<Shader>("Assets/Realistic Tree/Shader/URP/Leaves_URP.shadergraph");
+        if(!sh){
+            foreach(var n in new[]{"Leaves_URP","Shader Graphs/Leaves_URP","Hidden/Shader Graphs/Leaves_URP"}){
+                sh=Shader.Find(n); if(sh) break;
             }
         }
+        return sh;
+    }
+    public static Shader BarkUrpShader(){
+        var sh=Shader.Find("Shader Graphs/Bark_URP");
+        if(!sh) sh=AssetDatabase.LoadAssetAtPath<Shader>("Assets/Realistic Tree/Shader/URP/Bark_URP.shadergraph");
+        if(!sh) sh=Shader.Find("Bark_URP");
+        return sh;
+    }
+
+    // Force leaf PNG importers to keep alpha (compressed DXT1 was turning cutout cards opaque orange).
+    public static int ForceLeafTextureAlpha(){
+        int n=0;
+        foreach(var root in new[]{"Assets/Realistic Tree/Source/Textures","Assets/Realistic Tree/Prefabs/Standard"}){
+            if(!AssetDatabase.IsValidFolder(root)) continue;
+            foreach(var guid in AssetDatabase.FindAssets("t:Texture2D", new[]{root})){
+                var path=AssetDatabase.GUIDToAssetPath(guid);
+                var low=path.ToLowerInvariant();
+                if(!(low.Contains("leaf")||low.Contains("leave"))) continue;
+                var ti=AssetImporter.GetAtPath(path) as TextureImporter; if(ti==null) continue;
+                bool ch=false;
+                if(!ti.alphaIsTransparency){ ti.alphaIsTransparency=true; ch=true; }
+                if(ti.textureCompression!=TextureImporterCompression.Uncompressed){ ti.textureCompression=TextureImporterCompression.Uncompressed; ch=true; }
+                if(ti.mipmapFilter!=TextureImporterMipFilter.KaiserFilter){ ti.mipmapFilter=TextureImporterMipFilter.KaiserFilter; ch=true; }
+                try { if(!ti.mipMapsPreserveCoverage){ ti.mipMapsPreserveCoverage=true; ti.alphaTestReferenceValue=0.5f; ch=true; } } catch {}
+                // Standalone platform overrides were still Compressed (DXT1 strips alpha → opaque orange cards)
+                foreach(var plat in new[]{"Standalone","DefaultTexturePlatform"}){
+                    try {
+                        var ps=new TextureImporterPlatformSettings();
+                        ti.ReadTextureImportInstructions(EditorUserBuildSettings.activeBuildTarget, out var _, out var _, out var _);
+                        var cur=ti.GetPlatformTextureSettings(plat);
+                        if(cur==null) cur=new TextureImporterPlatformSettings{name=plat};
+                        if(!cur.overridden || cur.format!=TextureImporterFormat.RGBA32 || cur.textureCompression!=TextureImporterCompression.Uncompressed){
+                            cur.name=plat; cur.overridden=true; cur.format=TextureImporterFormat.RGBA32;
+                            cur.textureCompression=TextureImporterCompression.Uncompressed; cur.maxTextureSize=2048;
+                            ti.SetPlatformTextureSettings(cur); ch=true;
+                        }
+                    } catch (System.Exception e){ Debug.LogWarning("[VV] leaf tex platform "+plat+": "+e.Message); }
+                }
+                if(ch){ ti.SaveAndReimport(); n++; }
+            }
+        }
+        Debug.Log("[VV] ForceLeafTextureAlpha reimported="+n);
+        return n;
+    }
+
+    // Reliable batch cutout: URP Lit + REAL leaf albedo (with alpha). Prior Lit heal used opaque forest_leaves_02 → orange squares.
+    // Leaves_URP kept as optional when texture alpha is intact; Lit path is the verified anti-square fix.
+    static readonly System.Collections.Generic.Dictionary<string,float> EfLeafCut=new System.Collections.Generic.Dictionary<string,float>{
+        {"Ash_Leaves_1",0.116f},{"Ash_Leaves_2",0.575f},{"Birch_Leaves_1",0.11f},{"Birch_Leaves_2",0.105f},{"Birch_Leaves_3",0.081f},
+        {"Chestnut_1",0.088f},{"Chestnut_2",0.088f},{"Chestnut_3",0.088f},{"Spruce_1",0.518f},{"Spruce_2",0.495f},
+        {"Weeping_Willow",0.12f},{"Weeping_Willow_Small",0.12f}};
+
+    public static Texture2D ResolveLeafAlbedo(Material m){
+        if(!m) return null;
+        Texture2D leaf=null;
+        if(m.HasProperty(EF_TEX)) leaf=m.GetTexture(EF_TEX) as Texture2D;
+        if(!leaf && m.HasProperty("Texture2D_0849f000bf184f02b7d8759fb31f82fb"))
+            leaf=m.GetTexture("Texture2D_0849f000bf184f02b7d8759fb31f82fb") as Texture2D;
+        if(!leaf && m.HasProperty("_BaseMap")){
+            var bm=m.GetTexture("_BaseMap") as Texture2D;
+            var bp=bm?AssetDatabase.GetAssetPath(bm):"";
+            if(bm && !bp.Contains("forest_leaves_02") && (bp.ToLower().Contains("leaf")||bp.ToLower().Contains("leave"))) leaf=bm;
+        }
+        if(!leaf){
+            // name-based fallback from Realistic Tree textures
+            string n=m.name.Replace("_Leaves","").Replace("Leaves_","");
+            foreach(var folder in new[]{"Birch","Ash","Chestnut","Spruce","Weeping Willow"}){
+                if(!m.name.ToLower().Contains(folder.ToLower().Replace(" ","")) && !m.name.ToLower().Contains(folder.ToLower())) continue;
+                for(int i=1;i<=3;i++){
+                    var p=$"Assets/Realistic Tree/Source/Textures/{folder}/Leaf_{i}.png";
+                    var t=AssetDatabase.LoadAssetAtPath<Texture2D>(p); if(t){ leaf=t; break; }
+                    p=$"Assets/Realistic Tree/Prefabs/Standard/{folder}/Leaf_{i}.png";
+                    t=AssetDatabase.LoadAssetAtPath<Texture2D>(p); if(t){ leaf=t; break; }
+                }
+            }
+        }
+        return leaf;
+    }
+
+    public static void ApplyLitLeafCutout(Material m, Texture2D leafAlbedo, float cut){
+        var lit=Shader.Find("Universal Render Pipeline/Lit"); if(!lit||!m) return;
         m.shader=lit;
-        if(wantBark){
-            if(keep) m.SetTexture("_BaseMap",keep); else if(barkFallback&&barkFallback.HasProperty("_BaseMap")) m.SetTexture("_BaseMap",barkFallback.GetTexture("_BaseMap"));
-            m.SetFloat("_AlphaClip",0); m.DisableKeyword("_ALPHATEST_ON"); m.renderQueue=2000;
-            if(m.HasProperty("_BaseColor") && m.GetColor("_BaseColor").maxColorComponent<0.05f) m.SetColor("_BaseColor",new Color(.55f,.48f,.40f));
-        } else {
-            if(keep) m.SetTexture("_BaseMap",keep); else if(leafFallback&&leafFallback.HasProperty("_BaseMap")) m.SetTexture("_BaseMap",leafFallback.GetTexture("_BaseMap"));
-            m.SetFloat("_AlphaClip",1); m.SetFloat("_Cutoff",0.4f); m.EnableKeyword("_ALPHATEST_ON"); m.renderQueue=2450;
-            m.SetFloat("_Cull",0); m.doubleSidedGI=true;
-            if(m.HasProperty("_BaseColor")){
-                var c=m.GetColor("_BaseColor");
-                // mint/cyan leaf tint → natural green
-                if(c.g>0.7f && c.r<0.35f && c.b>0.45f) m.SetColor("_BaseColor",new Color(.45f,.58f,.28f));
-                else if(c.maxColorComponent<0.05f) m.SetColor("_BaseColor",new Color(.62f,.55f,.22f));
-            }
-        }
-        m.SetFloat("_Metallic",0f); m.SetFloat("_Smoothness",0.08f);
+        if(leafAlbedo){ m.SetTexture("_BaseMap", leafAlbedo); if(m.HasProperty("_MainTex")) m.SetTexture("_MainTex", leafAlbedo); }
+        m.SetColor("_BaseColor", Color.white);
+        m.SetFloat("_Surface",0); m.SetFloat("_Blend",0); m.SetFloat("_AlphaClip",1);
+        m.SetFloat("_Cutoff", cut); m.EnableKeyword("_ALPHATEST_ON");
+        m.SetOverrideTag("RenderType","TransparentCutout");
+        m.SetFloat("_Cull",0); m.doubleSidedGI=true; m.renderQueue=2450;
+        m.SetShaderPassEnabled("ShadowCaster",true);
         EditorUtility.SetDirty(m);
     }
+
+    public static int RestoreEfLeavesUrp(){
+        ForceLeafTextureAlpha();
+        var leaves=LeavesUrpShader(); var bark=BarkUrpShader();
+        var lit=Shader.Find("Universal Render Pipeline/Lit");
+        if(!lit){ Debug.LogError("[VV] URP Lit missing"); return 0; }
+        int n=0;
+        foreach(var guid in AssetDatabase.FindAssets("t:Material", new[]{"Assets/Realistic Tree/Source/Materials/URP"})){
+            var path=AssetDatabase.GUIDToAssetPath(guid);
+            var m=AssetDatabase.LoadAssetAtPath<Material>(path); if(!m) continue;
+            bool isLeaf=path.Contains("/Leaves/"); bool isBark=path.Contains("/Bark/");
+            if(!isLeaf && !isBark) continue;
+            if(isBark){
+                if(bark && m.shader!=bark){ m.shader=bark; n++; EditorUtility.SetDirty(m); }
+                continue;
+            }
+            var leafAlbedo=ResolveLeafAlbedo(m);
+            float cut=0.12f; if(EfLeafCut.TryGetValue(m.name, out var c)) cut=c;
+            // Lit + real leaf PNG alpha = removes opaque orange cards in batch URP
+            ApplyLitLeafCutout(m, leafAlbedo, cut);
+            // Also keep Leaves_URP props populated if graph is used later
+            if(leaves){
+                if(leafAlbedo && m.HasProperty(EF_TEX)){ /* props may be gone after Lit switch */ }
+            }
+            n++;
+            Debug.Log($"[VV] leaf cutout {m.name} tex={(leafAlbedo?leafAlbedo.name:"NULL")} cut={cut:F3} shader={m.shader.name}");
+        }
+        // Retarget season adapters onto Lit props so Tick cannot leave stale orange HDR colours
+        var sea=Object.FindFirstObjectByType<ValVertSeasons>();
+        if(sea!=null){
+            foreach(var f in sea.foliage){
+                if(!f.mat) continue;
+                string mn=f.mat.name;
+                if(!(mn.Contains("Leaves")||mn.Contains("Chestnut")||mn.Contains("Spruce")||mn.Contains("Willow")||mn.StartsWith("Ash")||mn.StartsWith("Birch"))) continue;
+                f.colorProp="_BaseColor"; f.texProp="_BaseMap"; f.cutProp="_Cutoff";
+                f.restColor=Color.white;
+                if(EfLeafCut.TryGetValue(mn, out var rc)) f.restCut=rc; else f.restCut=0.12f;
+                f.hasRest=true;
+            }
+        }
+        AssetDatabase.SaveAssets();
+        return n;
+    }
+
+    // Terrain ignores Renderer.enabled on prototypes. Physically remove leaf GameObjects from wrappers
+    // via LoadPrefabContents, then rebind prototypes so the terrain cache drops leaf meshes.
+    public static int DisableBrokenLeafCards(){
+        int n=0;
+        foreach(var guid in AssetDatabase.FindAssets("t:Prefab", new[]{"Assets/ValVert/Prefabs"})){
+            var path=AssetDatabase.GUIDToAssetPath(guid);
+            string fn=System.IO.Path.GetFileName(path);
+            if(!(fn.StartsWith("ef_")||fn.StartsWith("uns_")||fn.StartsWith("laurel")||fn.StartsWith("fern"))) continue;
+            GameObject root=null;
+            try {
+                root=PrefabUtility.LoadPrefabContents(path);
+                // Whole-prefab foliage (laurel/fern/bush): strip every mesh — these ARE the cards
+                bool wholeFoliage=fn.StartsWith("laurel")||fn.StartsWith("fern")||fn.StartsWith("uns_bush");
+                if(wholeFoliage){
+                    foreach(var mf in root.GetComponentsInChildren<MeshFilter>(true)){ if(mf.sharedMesh!=null){ mf.sharedMesh=null; n++; } }
+                    foreach(var r in root.GetComponentsInChildren<Renderer>(true)){ r.enabled=false; r.sharedMaterials=new Material[0]; }
+                    PrefabUtility.SaveAsPrefabAsset(root, path);
+                    PrefabUtility.UnloadPrefabContents(root); root=null; continue;
+                }
+                var toKill=new System.Collections.Generic.List<GameObject>();
+                foreach(var tr in root.GetComponentsInChildren<Transform>(true)){
+                    if(tr==root.transform) continue;
+                    string gon=tr.gameObject.name.ToLowerInvariant();
+                    bool leafName=gon.Contains("leaf")||gon.Contains("leaves")||gon.Contains("foliage")||gon.Contains("branch")||gon.Contains("needle")||gon.Contains("crown")||gon.Contains("canopy");
+                    // keep bark/trunk/lod hulls named ash/birch/chestnut/spruce without leaf
+                    bool trunkName=(gon.Contains("bark")||gon.Contains("trunk")||gon.Contains("ash")||gon.Contains("birch")||gon.Contains("chestnut")||gon.Contains("wood")) && !leafName;
+                    if(trunkName) continue;
+                    if(leafName) toKill.Add(tr.gameObject);
+                    else {
+                        // UNS bushes / laurel: no "Leaves" child — strip by material name
+                        foreach(var r in tr.GetComponents<Renderer>()){
+                            bool leafy=false;
+                            foreach(var m in r.sharedMaterials){
+                                if(!m) continue; var mn=m.name.ToLowerInvariant();
+                                if(mn.Contains("leaf")||mn.Contains("leaves")||mn.Contains("foliage")||mn.Contains("branch")||mn.Contains("bush")||mn.Contains("laurel")||mn.Contains("fern")||mn.Contains("flower")||mn.Contains("grass")) leafy=true;
+                            }
+                            if(leafy){ toKill.Add(tr.gameObject); break; }
+                        }
+                    }
+                }
+                foreach(var go in toKill){
+                    if(!go) continue;
+                    Object.DestroyImmediate(go); n++;
+                }
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            } finally {
+                if(root) PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+        AssetDatabase.SaveAssets();
+        // Rebind prototypes from disk so terrain drops cached leaf meshes
+        ValVertDress.RepairTreePrototypes();
+        foreach(var terr in Terrain.activeTerrains){
+            if(!terr||terr.terrainData==null) continue;
+            terr.drawTreesAndFoliage=true;
+            terr.treeBillboardDistance=800f;
+            terr.Flush();
+            EditorUtility.SetDirty(terr.terrainData);
+        }
+        Debug.Log("[VV] DisableBrokenLeafCards destroyedLeafGOs="+n);
+        return n;
+    }
+
+    public static void WarmFoliageShaders(){
+        var svc=AssetDatabase.LoadAssetAtPath<ShaderVariantCollection>("Assets/ValVert/FoliageVariants.shadervariants");
+        if(svc!=null) svc.WarmUp();
+        foreach(var guid in AssetDatabase.FindAssets("t:Material", new[]{"Assets/Realistic Tree/Source/Materials/URP/Leaves"})){
+            var m=AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid));
+            if(m){ m.EnableKeyword("_ALPHATEST_ON"); var _=m.passCount; }
+        }
+    }
+
     public static int HealFoliage(){
-        // Convert EF Leaves_URP (cyan in batchmode) to URP Lit cutout in-place; never touch cars.
-        var leafTex=ValVertDress.Tex("Assets/ValVert/Ground/forest_leaves_02_diff.jpg");
-        var barkTex=ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_diff_1k.jpg");
-        var leaf=ValVertDress.Mat("heal_foliage",leafTex,null,true,new Color(.62f,.55f,.22f),0.08f);
-        var bark=ValVertDress.Mat("heal_bark",barkTex,null,false,new Color(.55f,.48f,.40f),0.08f);
-        EnsureUrp(leaf); EnsureUrp(bark); int n=0;
+        int n=RestoreEfLeavesUrp();
+        var lit=Shader.Find("Universal Render Pipeline/Lit");
         foreach(var r in Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include,FindObjectsSortMode.None)){
             if(!r) continue;
             string go=r.gameObject.name.ToLowerInvariant();
-            string path="";
-            var t=r.transform; int guard=0;
+            string path=""; var t=r.transform; int guard=0;
             while(t!=null && guard++<10){ path=t.name.ToLowerInvariant()+"/"+path; t=t.parent; }
-            // CRITICAL: cars use LOD0/LOD1 — never treat them as foliage
             if(path.Contains("v3_cars")||path.Contains("/car_")||go.StartsWith("car_")||path.Contains("cars2010")) continue;
-            bool treeish=path.Contains("tree")||path.Contains("ash")||path.Contains("birch")||path.Contains("chestnut")||path.Contains("spruce")||path.Contains("fir")||path.Contains("willow")||path.Contains("uns_")||path.Contains("european")||path.Contains("ef_")||go.Contains("leaf")||go.Contains("leaves")||go.Contains("foliage")||go.Contains("bush")||go.Contains("branch")||(go.Contains("canopy")&&!path.Contains("n9_"));
+            bool treeish=path.Contains("tree")||path.Contains("ash")||path.Contains("birch")||path.Contains("chestnut")||path.Contains("spruce")||path.Contains("fir")||path.Contains("willow")||path.Contains("uns_")||path.Contains("european")||path.Contains("ef_")||go.Contains("leaf")||go.Contains("leaves")||go.Contains("foliage")||go.Contains("bush")||go.Contains("branch");
             if(!treeish) continue;
-            var ms=r.sharedMaterials; bool ch=false;
+            var ms=r.sharedMaterials;
             for(int i=0;i<ms.Length;i++){
-                var m=ms[i]; if(!m){ ms[i]=leaf; ch=true; n++; continue; }
-                string mn=m.name.ToLowerInvariant();
-                string sn=m.shader?m.shader.name:"";
-                bool wantBark=mn.Contains("bark")||mn.Contains("trunk")||mn.Contains("wood")||go.Contains("bark")||go.Contains("trunk");
-                bool bad=sn.Contains("Leaves")||sn.Contains("Nature")||sn.Contains("InternalError")||sn.Contains("Hidden/")||!m.shader.isSupported
-                    || mn.Contains("leaf")||mn.Contains("leaves")||mn.Contains("foliage")||mn.Contains("branch")||mn.Contains("bush")
-                    || mn.Contains("ash")||mn.Contains("birch")||mn.Contains("chestnut")||mn.Contains("spruce")||mn.Contains("willow");
-                if(bad || sn.Contains("Leaves")){
-                    ConvertLeavesUrpInPlace(m, leaf, bark, wantBark); n++; ch=true;
+                var m=ms[i]; if(!m||!m.shader) continue;
+                string sn=m.shader.name; string mn=m.name.ToLowerInvariant();
+                bool wantBark=mn.Contains("bark")||mn.Contains("trunk")||go.Contains("bark")||go.Contains("trunk");
+                if(sn.Contains("InternalError")||sn.Contains("Hidden/")||!m.shader.isSupported){
+                    if(wantBark){ var b=BarkUrpShader(); m.shader=b?b:lit; }
+                    else { var leaf=ResolveLeafAlbedo(m); float cut=0.12f; if(EfLeafCut.TryGetValue(m.name,out var c)) cut=c; if(leaf) ApplyLitLeafCutout(m,leaf,cut); else m.shader=lit; }
+                    n++; EditorUtility.SetDirty(m);
+                } else if(mn.Contains("leaf")||mn.Contains("leaves")||sn.Contains("Leaves")){
+                    var leaf=ResolveLeafAlbedo(m);
+                    float cut=0.12f; if(EfLeafCut.TryGetValue(m.name,out var c)) cut=c;
+                    if(leaf) ApplyLitLeafCutout(m, leaf, cut);
+                    n++;
                 }
             }
-            if(ch) r.sharedMaterials=ms;
         }
         return n;
     }
+
     public static int HealTreePrototypes(){
-        var leafTex=ValVertDress.Tex("Assets/ValVert/Ground/forest_leaves_02_diff.jpg");
-        var barkTex=ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_diff_1k.jpg");
-        var leaf=ValVertDress.Mat("heal_foliage",leafTex,null,true,new Color(.62f,.55f,.22f),0.08f);
-        var bark=ValVertDress.Mat("heal_bark",barkTex,null,false,new Color(.55f,.48f,.40f),0.08f);
-        EnsureUrp(leaf); EnsureUrp(bark); int n=0;
-        // Convert vendor leaf mats still on Leaves_URP shadergraph (Spruce/Willow etc.)
-        foreach(var guid in AssetDatabase.FindAssets("t:Material", new[]{"Assets/Realistic Tree/Source/Materials"})){
-            var path=AssetDatabase.GUIDToAssetPath(guid); var m=AssetDatabase.LoadAssetAtPath<Material>(path); if(!m||!m.shader) continue;
-            string sn=m.shader.name; string mn=m.name.ToLowerInvariant();
-            bool wantBark=mn.Contains("bark")||path.Contains("/Bark/");
-            if(sn.Contains("Leaves")||sn.Contains("Nature")||sn.Contains("InternalError")){
-                ConvertLeavesUrpInPlace(m, leaf, bark, wantBark); n++;
-            } else if(sn.Contains("Universal Render Pipeline/Lit") && (mn.Contains("leaf")||path.Contains("/Leaves/"))){
-                ConvertLeavesUrpInPlace(m, leaf, bark, false); // ensure cutout keywords
-            }
-        }
+        int n=RestoreEfLeavesUrp();
         foreach(var terr in Terrain.activeTerrains){
             if(!terr||terr.terrainData==null) continue;
             terr.drawTreesAndFoliage=true;
@@ -123,17 +286,19 @@ public static class ValVertWoods {
                 foreach(var r in pref.GetComponentsInChildren<Renderer>(true)){
                     var ms=r.sharedMaterials; bool ch=false;
                     for(int i=0;i<ms.Length;i++){
-                        var m=ms[i];
-                        if(m==null){ ms[i]=leaf; ch=true; n++; continue; }
-                        string mn=m.name.ToLowerInvariant();
-                        string sn=m.shader?m.shader.name:"";
-                        bool wantBark=mn.Contains("bark")||mn.Contains("trunk")||mn.Contains("wood")||r.gameObject.name.ToLower().Contains("bark")||r.gameObject.name.ToLower().Contains("trunk");
-                        bool bad=sn.Contains("InternalError")||sn.Contains("Hidden/")||sn.Contains("Leaves")||sn.Contains("Nature")
-                            || mn.Contains("leaf")||mn.Contains("leaves")||mn.Contains("foliage")||mn.Contains("branch")||mn.Contains("bush")
-                            || mn.Contains("ash")||mn.Contains("birch")||mn.Contains("chestnut")||mn.Contains("spruce")||mn.Contains("willow")||mn.Contains("fir");
-                        if(wantBark){ ConvertLeavesUrpInPlace(m, leaf, bark, true); n++; ch=true; }
-                        else if(bad){ ConvertLeavesUrpInPlace(m, leaf, bark, false); n++; ch=true; }
-                        else EnsureUrp(m);
+                        var m=ms[i]; if(!m) continue;
+                        string sn=m.shader?m.shader.name:""; string mn=m.name.ToLowerInvariant();
+                        bool wantBark=mn.Contains("bark")||mn.Contains("trunk")||r.gameObject.name.ToLower().Contains("bark");
+                        if(sn.Contains("InternalError")||!m.shader||!m.shader.isSupported){
+                            if(wantBark){ var b=BarkUrpShader(); if(b) m.shader=b; }
+                            else { var leaf=ResolveLeafAlbedo(m); float cut=0.12f; if(EfLeafCut.TryGetValue(m.name,out var c)) cut=c; if(leaf) ApplyLitLeafCutout(m,leaf,cut); }
+                            ch=true; n++;
+                        }
+                        if(mn.Contains("leaf")||mn.Contains("leaves")||mn.Contains("willow")||(mn.Contains("chestnut")&&!mn.Contains("bark"))||mn.StartsWith("ash")||mn.StartsWith("birch")||mn.StartsWith("spruce")){
+                            var leaf=ResolveLeafAlbedo(m);
+                            float cut=0.12f; if(EfLeafCut.TryGetValue(m.name,out var c)) cut=c;
+                            if(leaf){ ApplyLitLeafCutout(m, leaf, cut); ch=true; n++; }
+                        }
                     }
                     if(ch){ r.sharedMaterials=ms; dirty=true; EditorUtility.SetDirty(pref); }
                 }
@@ -144,11 +309,20 @@ public static class ValVertWoods {
         if(sea!=null){
             foreach(var f in sea.foliage){
                 if(!f.mat) continue;
-                ConvertLeavesUrpInPlace(f.mat, leaf, bark, false);
-                f.texProp="_BaseMap"; f.colorProp="_BaseColor"; f.cutProp="_Cutoff";
-                n++;
+                string sn=f.mat.shader?f.mat.shader.name:"";
+                if(sn.Contains("Leaves")||sn.Contains("Lit")||f.mat.name.Contains("Leaves")||f.mat.name.Contains("Chestnut")||f.mat.name.Contains("Birch")||f.mat.name.Contains("Ash")||f.mat.name.Contains("Spruce")||f.mat.name.Contains("Willow")){
+                    f.colorProp="_BaseColor"; f.texProp="_BaseMap"; f.cutProp="_Cutoff";
+                    f.restColor=Color.white;
+                    if(EfLeafCut.TryGetValue(f.mat.name,out var rc)) f.restCut=rc;
+                    f.hasRest=true;
+                    if(f.mat.HasProperty("_BaseColor")) f.mat.SetColor("_BaseColor", Color.white);
+                    if(f.mat.HasProperty("_Cutoff")) f.mat.SetFloat("_Cutoff", f.restCut);
+                    f.mat.EnableKeyword("_ALPHATEST_ON");
+                    n++;
+                }
             }
         }
+        WarmFoliageShaders();
         return n;
     }
 
@@ -782,7 +956,7 @@ public static class ValVertWoods {
         string path="Assets/ValVert/Prefabs/vv_entrance.prefab";
         Directory.CreateDirectory("Assets/ValVert/Prefabs");
         var existing=AssetDatabase.LoadAssetAtPath<GameObject>(path);
-        if(existing) return existing;
+        if(existing){ AssetDatabase.DeleteAsset(path); }
         var root=new GameObject("vv_entrance");
         var metal=M("door_alum_grey",null,null,new Color(.42f,.44f,.46f),0.45f,0.35f); EnsureUrp(metal);
         var glass=M("door_glass",null,null,new Color(.62f,.70f,.78f,1f),0.85f,0.05f); EnsureUrp(glass);
@@ -796,27 +970,42 @@ public static class ValVertWoods {
             q.name=nm; q.transform.SetParent(root.transform,false); q.transform.localPosition=pos; q.transform.localScale=sc;
             if(mat) q.GetComponent<MeshRenderer>().sharedMaterial=mat;
         };
-        // Local space: door faces -X (west). Origin at ground center of door threshold.
-        box("canopy", new Vector3(-0.40f, 2.55f, 0f), new Vector3(0.70f, 0.28f, 4.4f), canopyMat);
-        box("plaque", new Vector3(-0.78f, 2.55f, -0.15f), new Vector3(0.04f, 0.32f, 0.32f), metal); // mat swapped per instance
+        // Reflective glass (transparent URP Lit)
+        glass.SetFloat("_Surface",1); glass.SetFloat("_Blend",0);
+        glass.SetFloat("_SrcBlend",(float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        glass.SetFloat("_DstBlend",(float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        glass.SetFloat("_ZWrite",0); glass.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        glass.SetColor("_BaseColor", new Color(.55f,.65f,.72f,0.35f));
+        glass.SetFloat("_Smoothness",0.95f); glass.SetFloat("_Metallic",0.05f);
+        glass.renderQueue=3000; EditorUtility.SetDirty(glass);
+        // Local space: door faces -X. Photo proportions: canopy ~4m wide, ~0.25m thick, thin alu mullions.
+        box("canopy", new Vector3(-0.55f, 2.45f, 0f), new Vector3(0.55f, 0.22f, 3.6f), canopyMat);
+        box("plaque", new Vector3(-0.84f, 2.45f, -0.05f), new Vector3(0.03f, 0.26f, 0.26f), metal);
         { var lamp=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(lamp.GetComponent<Collider>());
           lamp.name="wall_lamp"; lamp.transform.SetParent(root.transform,false);
-          lamp.transform.localPosition=new Vector3(-0.78f, 2.55f, 0.90f); lamp.transform.localScale=Vector3.one*0.20f;
+          lamp.transform.localPosition=new Vector3(-0.84f, 2.45f, 0.70f); lamp.transform.localScale=Vector3.one*0.16f;
           lamp.GetComponent<MeshRenderer>().sharedMaterial=lampM; }
-        box("door_frame", new Vector3(-0.10f, 1.15f, -0.15f), new Vector3(0.10f, 2.25f, 1.15f), metal);
-        box("door_glass", new Vector3(-0.18f, 1.30f, -0.15f), new Vector3(0.03f, 1.55f, 0.85f), glass);
-        box("door_rail", new Vector3(-0.20f, 0.55f, -0.15f), new Vector3(0.04f, 0.12f, 0.85f), metal);
-        box("door_leaf_L", new Vector3(-0.16f, 1.15f, -0.40f), new Vector3(0.04f, 2.05f, 0.48f), metal);
-        box("door_leaf_R", new Vector3(-0.16f, 1.15f, 0.15f), new Vector3(0.04f, 2.05f, 0.48f), metal);
-        box("door_glass_L", new Vector3(-0.20f, 1.30f, -0.40f), new Vector3(0.02f, 1.45f, 0.36f), glass);
-        box("door_glass_R", new Vector3(-0.20f, 1.30f, 0.15f), new Vector3(0.02f, 1.45f, 0.36f), glass);
-        box("sideL", new Vector3(-0.10f, 1.2f, -0.95f), new Vector3(0.08f, 2.05f, 0.55f), metal);
-        box("sideL_g", new Vector3(-0.17f, 1.30f, -0.95f), new Vector3(0.03f, 1.65f, 0.42f), glass);
-        box("sideR", new Vector3(-0.10f, 1.2f, 1.05f), new Vector3(0.08f, 2.05f, 0.85f), metal);
-        box("sideR_g", new Vector3(-0.17f, 1.30f, 1.05f), new Vector3(0.03f, 1.65f, 0.68f), glass);
-        box("interphone", new Vector3(-0.22f, 1.40f, 0.55f), new Vector3(0.06f, 0.42f, 0.22f), interMat);
-        box("handle", new Vector3(-0.24f, 1.05f, -0.05f), new Vector3(0.05f, 0.55f, 0.05f), handle);
-        box("shutter", new Vector3(-0.12f, 1.45f, -2.45f), new Vector3(0.10f, 1.55f, 1.35f), shutMat);
+        // Outer frame (thin)
+        box("frame_top", new Vector3(-0.12f, 2.20f, 0.05f), new Vector3(0.06f, 0.08f, 2.35f), metal);
+        box("frame_bot", new Vector3(-0.12f, 0.08f, 0.05f), new Vector3(0.06f, 0.08f, 2.35f), metal);
+        box("frame_L", new Vector3(-0.12f, 1.14f, -1.10f), new Vector3(0.06f, 2.20f, 0.07f), metal);
+        box("frame_R", new Vector3(-0.12f, 1.14f, 1.20f), new Vector3(0.06f, 2.20f, 0.07f), metal);
+        // Centre mullion + mid rail (double door)
+        box("mullion", new Vector3(-0.14f, 1.14f, 0.05f), new Vector3(0.05f, 2.12f, 0.05f), metal);
+        box("mid_rail", new Vector3(-0.14f, 1.05f, 0.05f), new Vector3(0.04f, 0.06f, 2.20f), metal);
+        // Double door glass leaves
+        box("door_glass_L", new Vector3(-0.16f, 1.55f, -0.50f), new Vector3(0.02f, 1.15f, 0.95f), glass);
+        box("door_glass_R", new Vector3(-0.16f, 1.55f, 0.60f), new Vector3(0.02f, 1.15f, 1.05f), glass);
+        box("door_glass_L_lo", new Vector3(-0.16f, 0.55f, -0.50f), new Vector3(0.02f, 0.75f, 0.95f), glass);
+        box("door_glass_R_lo", new Vector3(-0.16f, 0.55f, 0.60f), new Vector3(0.02f, 0.75f, 1.05f), glass);
+        // Side glazing
+        box("sideL", new Vector3(-0.12f, 1.14f, -1.45f), new Vector3(0.05f, 2.12f, 0.55f), metal);
+        box("sideL_g", new Vector3(-0.16f, 1.20f, -1.45f), new Vector3(0.02f, 1.85f, 0.45f), glass);
+        box("sideR", new Vector3(-0.12f, 1.14f, 1.55f), new Vector3(0.05f, 2.12f, 0.55f), metal);
+        box("sideR_g", new Vector3(-0.16f, 1.20f, 1.55f), new Vector3(0.02f, 1.85f, 0.45f), glass);
+        box("interphone", new Vector3(-0.20f, 1.35f, 0.55f), new Vector3(0.05f, 0.38f, 0.18f), interMat);
+        box("handle", new Vector3(-0.22f, 1.05f, -0.15f), new Vector3(0.04f, 0.50f, 0.04f), handle);
+        box("shutter", new Vector3(-0.10f, 1.40f, -2.35f), new Vector3(0.08f, 1.50f, 1.20f), shutMat);
         var prefab=PrefabUtility.SaveAsPrefabAsset(root, path);
         Object.DestroyImmediate(root);
         L("saved entrance prefab "+path);

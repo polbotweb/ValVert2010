@@ -14,7 +14,7 @@ public static class ValVertSeason {
     static bool RestTable(ValVertSeasons.Foliage f,out Color c,out float cut){
         string n=f.mat.name; c=Color.white; cut=0.45f;
         var ef=new System.Collections.Generic.Dictionary<string,float>{{"Ash_Leaves_1",0.116f},{"Ash_Leaves_2",0.575f},{"Birch_Leaves_1",0.11f},{"Birch_Leaves_2",0.105f},{"Birch_Leaves_3",0.081f},{"Chestnut_1",0.088f},{"Chestnut_2",0.088f},{"Chestnut_3",0.088f},{"Spruce_1",0.518f},{"Spruce_2",0.495f}};
-        if(ef.TryGetValue(n,out cut)){ c=new Color(1,1,1,0); return true; }
+        if(ef.TryGetValue(n,out cut)){ c=Color.white; return true; }
         if(n=="UNS_Spruce_Tree_Branch"){ c=new Color(.32f,.43f,.22f,1); cut=0.5f; return true; }
         if(n=="UNS_Bush_Leaves"){ c=new Color(.27f,.37f,.15f,1); cut=0.5f; return true; }
         if(f.colorProp=="_BaseColor"&&!n.StartsWith("UNS")){ c=Color.white; cut=0.45f; return true; }
@@ -56,7 +56,7 @@ public static class ValVertEnvWire {
     static bool RestTable(ValVertSeasons.Foliage f,out Color c,out float cut){
         string n=f.mat.name; c=Color.white; cut=0.45f;
         var ef=new System.Collections.Generic.Dictionary<string,float>{{"Ash_Leaves_1",0.116f},{"Ash_Leaves_2",0.575f},{"Birch_Leaves_1",0.11f},{"Birch_Leaves_2",0.105f},{"Birch_Leaves_3",0.081f},{"Chestnut_1",0.088f},{"Chestnut_2",0.088f},{"Chestnut_3",0.088f},{"Spruce_1",0.518f},{"Spruce_2",0.495f}};
-        if(ef.TryGetValue(n,out cut)){ c=new Color(1,1,1,0); return true; }
+        if(ef.TryGetValue(n,out cut)){ c=Color.white; return true; }
         if(n=="UNS_Spruce_Tree_Branch"){ c=new Color(.32f,.43f,.22f,1); cut=0.5f; return true; }
         if(n=="UNS_Bush_Leaves"){ c=new Color(.27f,.37f,.15f,1); cut=0.5f; return true; }
         if(f.colorProp=="_BaseColor"&&!n.StartsWith("UNS")){ c=Color.white; cut=0.45f; return true; }
@@ -75,7 +75,7 @@ public static class ValVertEnvWire {
         foreach(var sp in new[]{("Ash",new Color(1.2f,1.0f,0.5f),new Color(1.8f,1.05f,0.25f)),("Birch",new Color(1.4f,1.05f,0.35f),new Color(1.95f,1.05f,0.18f)),("Chestnut",new Color(1.3f,0.9f,0.35f),new Color(1.7f,0.72f,0.25f))})
             foreach(var guid in AssetDatabase.FindAssets("t:Material",new[]{"Assets/Realistic Tree/Source/Materials/URP/Leaves/"+sp.Item1})){
                 var m=AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid)); if(!m) continue;
-                sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,colorProp="Color_118e71b9c10c4eed91eea60a3ba568b1",texProp="Texture2D_bfb8accc76d9413bad4df77aa898cfaf",cutProp="Vector1_7c4b0ab460c949e098609f36717c4248",autumnTint=sp.Item2,autumnTint2=sp.Item3}); }
+                sea.foliage.Add(new ValVertSeasons.Foliage{mat=m,colorProp="_BaseColor",texProp="_BaseMap",cutProp="_Cutoff",autumnTint=sp.Item2,autumnTint2=sp.Item3}); }
         // Ultimate Nature Starter adapter: classify its foliage materials once the package is imported (vendor files stay local)
         foreach(var guid in AssetDatabase.FindAssets("t:Material",new[]{"Assets"})){ var p=AssetDatabase.GUIDToAssetPath(guid); var pl=p.ToLower();
             if(!(pl.Contains("ultimate nature")||pl.Contains("ultimatenature")||pl.Contains("/uns")||pl.Contains("innerverse"))) continue;
