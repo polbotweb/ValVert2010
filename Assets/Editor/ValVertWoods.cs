@@ -16,7 +16,111 @@ public static class ValVertWoods {
     public static bool Lawn168(float x,float z){ return x>357f&&x<394f&&z>92.5f&&z<116.5f; }
     public static bool ShotClear(float x,float z){ if(Lawn168(x,z)) return true; var p=new Vector2(x,z); foreach(var c in Clear) if((p-c).magnitude<4.5f) return true; return false; }
     static Material Also(this Material m){ m.SetFloat("_Cull",0); m.doubleSidedGI=true; return m; }
-    static Material M(string n,Texture2D d,Texture2D nm,Color c,float sm,float met=0,bool cut=false){ var m=ValVertDress.Mat(n,d,nm,cut,c,sm); m.SetFloat("_Metallic",met); return m; }
+    static Material M(string n,Texture2D d,Texture2D nm,Color c,float sm,float met=0,bool cut=false){ var m=ValVertDress.Mat(n,d,nm,cut,c,sm); m.SetFloat("_Metallic",met); EnsureUrp(m); return m; }
+    public static void EnsureUrp(Material m){
+        if(!m) return;
+        var lit=Shader.Find("Universal Render Pipeline/Lit");
+        if(lit==null) return;
+        if(m.shader==null || m.shader.name.Contains("InternalError") || !m.shader.isSupported) m.shader=lit;
+    }
+    public static int HealFoliage(){
+        // EF / UNS foliage shaders often draw cyan/magenta under batch URP when textures/props drift.
+        // Force a known-good URP Lit cutout leaf (and bark) onto every tree/leaf renderer.
+        var leafTex=ValVertDress.Tex("Assets/ValVert/Ground/forest_leaves_02_diff.jpg");
+        var barkTex=ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_diff_1k.jpg");
+        var leaf=ValVertDress.Mat("heal_foliage",leafTex,null,true,new Color(.42f,.55f,.26f),0.08f);
+        var bark=ValVertDress.Mat("heal_bark",barkTex,null,false,new Color(.55f,.48f,.40f),0.08f);
+        EnsureUrp(leaf); EnsureUrp(bark); int n=0;
+        foreach(var r in Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include,FindObjectsSortMode.None)){
+            if(!r) continue;
+            string go=r.gameObject.name.ToLowerInvariant();
+            string path="";
+            var t=r.transform; int guard=0;
+            while(t!=null && guard++<8){ path=t.name.ToLowerInvariant()+"/"+path; t=t.parent; }
+            bool treeish=path.Contains("tree")||path.Contains("ash")||path.Contains("birch")||path.Contains("chestnut")||path.Contains("spruce")||path.Contains("fir")||path.Contains("willow")||path.Contains("uns_")||path.Contains("european")||path.Contains("lod")||go.Contains("leaf")||go.Contains("leaves")||go.Contains("foliage")||go.Contains("bush")||go.Contains("branch")||go.Contains("canopy");
+            if(!treeish) continue;
+            var ms=r.sharedMaterials; bool ch=false;
+            for(int i=0;i<ms.Length;i++){
+                var m=ms[i]; string mn=m?m.name.ToLowerInvariant():"";
+                bool wantBark=mn.Contains("bark")||mn.Contains("trunk")||mn.Contains("wood")||go.Contains("bark")||go.Contains("trunk");
+                var rep=wantBark?bark:leaf;
+                if(ms[i]!=rep){ ms[i]=rep; ch=true; n++; }
+            }
+            if(ch) r.sharedMaterials=ms;
+        }
+        return n;
+    }
+    public static int HealTreePrototypes(){
+        var leafTex=ValVertDress.Tex("Assets/ValVert/Ground/forest_leaves_02_diff.jpg");
+        var barkTex=ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_diff_1k.jpg");
+        var leaf=ValVertDress.Mat("heal_foliage",leafTex,null,true,new Color(.42f,.55f,.26f),0.08f);
+        var bark=ValVertDress.Mat("heal_bark",barkTex,null,false,new Color(.55f,.48f,.40f),0.08f);
+        EnsureUrp(leaf); EnsureUrp(bark); int n=0;
+        foreach(var terr in Terrain.activeTerrains){
+            if(!terr||terr.terrainData==null) continue;
+            var protos=terr.terrainData.treePrototypes;
+            bool dirty=false;
+            for(int pi=0;pi<protos.Length;pi++){
+                var pref=protos[pi].prefab; if(!pref) continue;
+                foreach(var r in pref.GetComponentsInChildren<Renderer>(true)){
+                    var ms=r.sharedMaterials; bool ch=false;
+                    for(int i=0;i<ms.Length;i++){
+                        var m=ms[i]; string mn=m?m.name.ToLowerInvariant():"";
+                        string sn=m&&m.shader?m.shader.name:"";
+                        bool wantBark=mn.Contains("bark")||mn.Contains("trunk")||mn.Contains("wood")||r.gameObject.name.ToLower().Contains("bark")||r.gameObject.name.ToLower().Contains("trunk");
+                        bool bad=m==null||m.shader==null||sn.Contains("InternalError")||sn.Contains("Hidden/")
+                            || sn.Contains("Leaves")||sn.Contains("Nature")||mn.Contains("leaf")||mn.Contains("leaves")||mn.Contains("foliage")||mn.Contains("branch")||mn.Contains("bush");
+                        // Always force leaf/bark slots on prototypes onto known-good URP Lit (EF Leaves_URP draws cyan when props drift)
+                        if(wantBark){ if(ms[i]!=bark){ ms[i]=bark; ch=true; n++; } }
+                        else if(bad || mn.Contains("leaf")||mn.Contains("leaves")||mn.Contains("ash")||mn.Contains("birch")||mn.Contains("chestnut")||mn.Contains("spruce")||mn.Contains("fir")||mn.Contains("uns")){
+                            if(ms[i]!=leaf){ ms[i]=leaf; ch=true; n++; }
+                        } else EnsureUrp(m);
+                    }
+                    if(ch){ r.sharedMaterials=ms; dirty=true; EditorUtility.SetDirty(pref); }
+                }
+            }
+            if(dirty){ terr.terrainData.treePrototypes=protos; EditorUtility.SetDirty(terr.terrainData); }
+        }
+        // Also wipe foliage list materials that Season.Tick would retint into cyan — replace their shader with URP Lit
+        var sea=Object.FindFirstObjectByType<ValVertSeasons>();
+        if(sea!=null){
+            foreach(var f in sea.foliage){
+                if(!f.mat) continue;
+                string sn=f.mat.shader?f.mat.shader.name:"";
+                if(sn.Contains("Leaves")||sn.Contains("InternalError")||sn.Contains("Hidden/")||!sn.Contains("Universal Render Pipeline/Lit")){
+                    f.mat.shader=Shader.Find("Universal Render Pipeline/Lit");
+                    if(leaf.HasProperty("_BaseMap") && leaf.GetTexture("_BaseMap")) f.mat.SetTexture("_BaseMap", leaf.GetTexture("_BaseMap"));
+                    f.mat.SetColor("_BaseColor", new Color(.42f,.55f,.26f));
+                    f.mat.SetFloat("_AlphaClip",1); f.mat.SetFloat("_Cutoff",0.4f); f.mat.EnableKeyword("_ALPHATEST_ON");
+                    f.texProp="_BaseMap"; f.colorProp="_BaseColor"; f.cutProp="_Cutoff";
+                    EditorUtility.SetDirty(f.mat); n++;
+                }
+            }
+        }
+        return n;
+    }
+
+    public static int FixBrokenMaterials(GameObject root=null){
+        var plaster=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/plaster.mat");
+        var rock=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/rock.mat")??plaster;
+        var wood=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/log_fence.mat")??plaster;
+        int n=0;
+        var rends=root?root.GetComponentsInChildren<Renderer>(true):Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include,FindObjectsSortMode.None);
+        foreach(var r in rends){
+            var ms=r.sharedMaterials; bool ch=false;
+            for(int i=0;i<ms.Length;i++){
+                var m=ms[i];
+                bool bad=m==null||m.shader==null||m.shader.name.Contains("InternalError")||(m.shader.name!="Universal Render Pipeline/Lit"&&m.shader.name.Contains("Error"));
+                if(bad){
+                    string nm=(r.gameObject.name+"/"+ (m?m.name:"null")).ToLower();
+                    ms[i]= nm.Contains("rock")||nm.Contains("boulder") ? rock : (nm.Contains("fence")||nm.Contains("sleeper")||nm.Contains("post")||nm.Contains("rail")||nm.Contains("stump")||nm.Contains("log")||nm.Contains("hr_") ? wood : plaster);
+                    ch=true; n++;
+                } else EnsureUrp(m);
+            }
+            if(ch) r.sharedMaterials=ms;
+        }
+        return n;
+    }
     static Material Glass(){ var m=M("glass_shelter",null,null,new Color(.75f,.85f,.88f,0.28f),0.9f).Also(); m.SetFloat("_Surface",1); m.SetFloat("_Blend",0); m.SetFloat("_SrcBlend",(float)BlendMode.SrcAlpha); m.SetFloat("_DstBlend",(float)BlendMode.OneMinusSrcAlpha); m.SetFloat("_ZWrite",0); m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); m.renderQueue=3000; return m; }
     public static void Meshes(Transform parent){ Meshes(parent,"woods_meshes.json","V3_Woods"); }
     public static Dictionary<string,Material> MATS;
@@ -296,11 +400,12 @@ public static class ValVertWoods {
     // round vertical posts + two round rails, and an irregular grey boulder at its foot in the foreground
     public static void StairApproach(){
         var root=new GameObject("V3_StairApproach"); Physics.SyncTransforms();
+        // Force heal log_fence / rock onto URP Lit before any primitives (CreatePrimitive default is magenta under URP)
         var wood=M("log_fence",ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_diff_1k.jpg"),ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_nor_gl_1k.jpg",true),new Color(.62f,.55f,.48f),0.08f);
         var rockM=MATS!=null&&MATS.ContainsKey("rock")?MATS["rock"]:wood;
         System.Func<float,float,float> gy=(x,z)=>{ var t=Terrain.activeTerrain; float ty=t.SampleHeight(new Vector3(x,0,z))+t.transform.position.y; if(Physics.Raycast(new Vector3(x,ty+3f,z),Vector3.down,out var hh,6f)&&!(hh.collider is TerrainCollider)) return Mathf.Max(ty,hh.point.y); return ty; };
         System.Action<string,Vector3,Vector3,float> log=(nm,a,b,r)=>{ var g=GameObject.CreatePrimitive(PrimitiveType.Cylinder); Object.DestroyImmediate(g.GetComponent<Collider>()); g.name=nm; g.transform.SetParent(root.transform,false);
-            g.transform.position=(a+b)/2; g.transform.up=(b-a).normalized; g.transform.localScale=new Vector3(r*2,Vector3.Distance(a,b)/2,r*2); g.GetComponent<MeshRenderer>().sharedMaterial=wood; };
+            g.transform.position=(a+b)/2; g.transform.up=(b-a).normalized; g.transform.localScale=new Vector3(r*2,Vector3.Distance(a,b)/2,r*2); EnsureUrp(wood); g.GetComponent<MeshRenderer>().sharedMaterial=wood; };
         // fence line: along the wooded slope edge (alley west edge, x~361.0), from the stair foot (z 131.9) towards the viewer (south) - alley stays clear
         float fx=362.15f; var posts=new List<Vector3>(); for(float zz=131.6f;zz>=123.5f;zz-=1.35f) posts.Add(new Vector3(fx,gy(fx,zz),zz));
         for(int i=0;i<posts.Count;i++){ var p=posts[i]; log("post_"+i,p+Vector3.down*0.25f,p+Vector3.up*1.0f,0.07f); }
@@ -309,8 +414,8 @@ public static class ValVertWoods {
         float bx=363.15f, bz=125.6f;
         var rockPrefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/InnerverseInteractive/Ultimate Nature – Starter/Environment/Rocks/Forest/Prefabs/UNS_Standard_Rock_03.prefab");
         GameObject bo;
-        if(rockPrefab!=null){ bo=(GameObject)Object.Instantiate(rockPrefab); foreach(var c in bo.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c); }
-        else { bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>()); if(rockM) bo.GetComponent<MeshRenderer>().sharedMaterial=rockM; }
+        bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>());
+            { var rm=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/rock.mat")??rockM??wood; EnsureUrp(rm); bo.GetComponent<MeshRenderer>().sharedMaterial=rm; }
         bo.name="boulder"; bo.transform.SetParent(root.transform,false);
         // low wide, sink ~40% into ground
         bo.transform.localScale=new Vector3(1.6f,0.85f,1.35f);
@@ -333,7 +438,7 @@ public static class ValVertWoods {
         var rockM=MATS!=null&&MATS.ContainsKey("rock")?MATS["rock"]:wood;
         System.Func<float,float,float> gy=(x,z)=>{ var t=Terrain.activeTerrain; float ty=t.SampleHeight(new Vector3(x,0,z))+t.transform.position.y; if(Physics.Raycast(new Vector3(x,ty+4f,z),Vector3.down,out var hh,8f)&&!(hh.collider is TerrainCollider)) return Mathf.Max(ty,hh.point.y); return ty; };
         System.Action<string,Vector3,Vector3,float> log=(nm,a,b,r)=>{ var g=GameObject.CreatePrimitive(PrimitiveType.Cylinder); Object.DestroyImmediate(g.GetComponent<Collider>()); g.name=nm; g.transform.SetParent(root.transform,false);
-            g.transform.position=(a+b)/2; g.transform.up=(b-a).normalized; g.transform.localScale=new Vector3(r*2,Vector3.Distance(a,b)/2,r*2); g.GetComponent<MeshRenderer>().sharedMaterial=wood; };
+            g.transform.position=(a+b)/2; g.transform.up=(b-a).normalized; g.transform.localScale=new Vector3(r*2,Vector3.Distance(a,b)/2,r*2); EnsureUrp(wood); g.GetComponent<MeshRenderer>().sharedMaterial=wood; };
         // --- nº9 log staircase: sleepers + gravel treads, handrails BOTH sides ---
         // Slope runs roughly west(high, woods) -> east(low, alley). Match Bld_stair_earth AABB.
         float zC=133.2f; float xTop=356.4f, xBot=361.5f; int nSteps=14;
@@ -373,9 +478,10 @@ public static class ValVertWoods {
         for(int i=0;i<boulders.GetLength(0);i++){
             float bx=boulders[i,0], bz=boulders[i,1], sc=boulders[i,2];
             GameObject bo;
-            var pref=(i%2==0?rockPrefab:rockPrefab2)??rockPrefab;
-            if(pref!=null){ bo=(GameObject)Object.Instantiate(pref); foreach(var c in bo.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c); }
-            else { bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>()); if(rockM) bo.GetComponent<MeshRenderer>().sharedMaterial=rockM; }
+            // Prefer procedural rock with known URP Lit rock.mat — UNS rock prefabs often carry unsupported shaders (magenta)
+            bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>());
+            var rm=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/rock.mat")??rockM??wood;
+            EnsureUrp(rm); bo.GetComponent<MeshRenderer>().sharedMaterial=rm;
             bo.name=$"park_boulder_{i}"; bo.transform.SetParent(root.transform,false);
             bo.transform.localScale=new Vector3(sc,sc*0.65f,sc*0.9f);
             bo.transform.rotation=Quaternion.Euler(5+i*7, i*37, -8+i*3);
@@ -428,7 +534,7 @@ public static class ValVertWoods {
         var rockM=MATS!=null&&MATS.ContainsKey("rock")?MATS["rock"]:wood;
         System.Func<float,float,float> gy=(x,z)=>{ var t=Terrain.activeTerrain; float ty=t.SampleHeight(new Vector3(x,0,z))+t.transform.position.y; if(Physics.Raycast(new Vector3(x,ty+5f,z),Vector3.down,out var hh,10f)&&!(hh.collider is TerrainCollider)) return Mathf.Max(ty,hh.point.y); return ty; };
         System.Action<string,Vector3,Vector3,float> log=(nm,a,b,r)=>{ var g=GameObject.CreatePrimitive(PrimitiveType.Cylinder); Object.DestroyImmediate(g.GetComponent<Collider>()); g.name=nm; g.transform.SetParent(root.transform,false);
-            g.transform.position=(a+b)/2; g.transform.up=(b-a).normalized; g.transform.localScale=new Vector3(r*2,Vector3.Distance(a,b)/2,r*2); g.GetComponent<MeshRenderer>().sharedMaterial=wood; };
+            g.transform.position=(a+b)/2; g.transform.up=(b-a).normalized; g.transform.localScale=new Vector3(r*2,Vector3.Distance(a,b)/2,r*2); EnsureUrp(wood); g.GetComponent<MeshRenderer>().sharedMaterial=wood; };
         System.Action<string,float,float,float,float,Material,float> patch=(nm,cx,cz,sx,sz,mat,yOff)=>{
             var q=GameObject.CreatePrimitive(PrimitiveType.Cube); Object.DestroyImmediate(q.GetComponent<Collider>());
             q.name=nm; q.transform.SetParent(root.transform,false);
@@ -490,8 +596,8 @@ public static class ValVertWoods {
             float bx=365.2f, bz=151.5f;
             var rockPrefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/InnerverseInteractive/Ultimate Nature – Starter/Environment/Rocks/Forest/Prefabs/UNS_Standard_Rock_03.prefab");
             GameObject bo;
-            if(rockPrefab!=null){ bo=(GameObject)Object.Instantiate(rockPrefab); foreach(var c in bo.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c); }
-            else { bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>()); if(rockM) bo.GetComponent<MeshRenderer>().sharedMaterial=rockM; }
+            bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>());
+            { var rm=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/rock.mat")??rockM??wood; EnsureUrp(rm); bo.GetComponent<MeshRenderer>().sharedMaterial=rm; }
             bo.name="ramp_boulder"; bo.transform.SetParent(root.transform,false);
             bo.transform.localScale=new Vector3(1.15f,0.7f,1.0f); bo.transform.rotation=Quaternion.Euler(10,55,-8);
             float gy0=gy(bx,bz); var rend=bo.GetComponentsInChildren<MeshRenderer>();
@@ -608,8 +714,8 @@ public static class ValVertWoods {
         var old=GameObject.Find("V3_Batch2Dress"); if(old) Object.DestroyImmediate(old);
         var root=new GameObject("V3_Batch2Dress"); Physics.SyncTransforms();
         var wood=M("log_fence",ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_diff_1k.jpg"),ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_nor_gl_1k.jpg",true),new Color(.55f,.48f,.40f),0.08f);
-        var metal=M("door_alum_grey",null,null,new Color(.42f,.44f,.46f),0.45f,0.35f);
-        var glass=M("door_glass",null,null,new Color(.55f,.62f,.70f,0.35f),0.9f,0f);
+        var metal=M("door_alum_grey",null,null,new Color(.42f,.44f,.46f),0.45f,0.35f); EnsureUrp(metal);
+        var glass=M("door_glass",null,null,new Color(.62f,.70f,.78f,1f),0.85f,0.05f); EnsureUrp(glass);
         var plaster=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/plaster.mat");
         var panel=M("facade_panel_grey",null,null,new Color(.62f,.63f,.64f),0.25f);
         var asp=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/asphalt_leaves.mat")
@@ -623,44 +729,41 @@ public static class ValVertWoods {
         var zebra=M("zebra_white",null,null,new Color(.95f,.95f,.93f),0.15f);
         System.Func<float,float,float> gy=(x,z)=>{ var t=Terrain.activeTerrain; float ty=t.SampleHeight(new Vector3(x,0,z))+t.transform.position.y; if(Physics.Raycast(new Vector3(x,ty+5f,z),Vector3.down,out var hh,10f)&&!(hh.collider is TerrainCollider)) return Mathf.Max(ty,hh.point.y); return ty; };
         System.Action<string,Vector3,Vector3,float> log=(nm,a,b,r)=>{ var g=GameObject.CreatePrimitive(PrimitiveType.Cylinder); Object.DestroyImmediate(g.GetComponent<Collider>()); g.name=nm; g.transform.SetParent(root.transform,false);
-            g.transform.position=(a+b)/2; g.transform.up=(b-a).normalized; g.transform.localScale=new Vector3(r*2,Vector3.Distance(a,b)/2,r*2); g.GetComponent<MeshRenderer>().sharedMaterial=wood; };
+            g.transform.position=(a+b)/2; g.transform.up=(b-a).normalized; g.transform.localScale=new Vector3(r*2,Vector3.Distance(a,b)/2,r*2); EnsureUrp(wood); g.GetComponent<MeshRenderer>().sharedMaterial=wood; };
         System.Action<string,Vector3,Vector3,Material> box=(nm,pos,sc,mat)=>{ var q=GameObject.CreatePrimitive(PrimitiveType.Cube); Object.DestroyImmediate(q.GetComponent<Collider>()); q.name=nm; q.transform.SetParent(root.transform,false); q.transform.position=pos; q.transform.localScale=sc; if(mat) q.GetComponent<MeshRenderer>().sharedMaterial=mat; };
 
-        // ===== 01: nº9 entrance (south wing facing parking/forecourt ~x 372, z 116) =====
-        // OSM apartments south face z~116; place entrance near center of south wall
-        float ex=374.5f, ez=116.15f; float ey=gy(ex,ez);
-        // canopy band
-        box("n9_canopy", new Vector3(ex, ey+2.55f, ez-0.15f), new Vector3(4.2f, 0.35f, 0.55f), metal);
-        // '9' plaque
-        box("n9_plaque", new Vector3(ex, ey+2.55f, ez-0.42f), new Vector3(0.28f, 0.28f, 0.04f), M("n9_blue",null,null,new Color(.12f,.22f,.55f),0.3f));
-        // round wall lamp
+        // ===== 01: nº9 entrance — west face of south wing onto ramp/forecourt (photos 01+08) =====
+        // Building west facade ~x 366.6 for z 116-126. Door faces -X (west).
+        float ex=366.75f, ez=122.4f; float ey=gy(ex,ez);
+        // canopy band on west face
+        var canopyMat=M("canopy",null,null,new Color(.62f,.63f,.64f),0.55f,0.45f); EnsureUrp(canopyMat);
+        box("n9_canopy", new Vector3(ex-0.35f, ey+2.55f, ez), new Vector3(0.55f, 0.35f, 4.2f), canopyMat);
+        box("n9_plaque", new Vector3(ex-0.62f, ey+2.55f, ez), new Vector3(0.04f, 0.28f, 0.28f), M("n9_blue",null,null,new Color(.12f,.22f,.55f),0.3f));
         { var lamp=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(lamp.GetComponent<Collider>());
           lamp.name="n9_wall_lamp"; lamp.transform.SetParent(root.transform,false);
-          lamp.transform.position=new Vector3(ex+0.85f, ey+2.55f, ez-0.45f); lamp.transform.localScale=Vector3.one*0.22f;
-          lamp.GetComponent<MeshRenderer>().sharedMaterial=M("globe_lamp",null,null,new Color(.95f,.95f,.90f),0.85f); }
-        // door leaf + angled panel + sidelights
-        box("n9_door", new Vector3(ex-0.15f, ey+1.1f, ez-0.12f), new Vector3(1.0f, 2.15f, 0.08f), metal);
-        box("n9_door_glass", new Vector3(ex-0.15f, ey+1.25f, ez-0.16f), new Vector3(0.75f, 1.5f, 0.02f), glass);
-        box("n9_door_angle", new Vector3(ex+0.25f, ey+1.15f, ez-0.14f), new Vector3(0.55f, 1.7f, 0.06f), metal);
-        box("n9_sideL", new Vector3(ex-0.95f, ey+1.2f, ez-0.12f), new Vector3(0.55f, 1.9f, 0.06f), metal);
-        box("n9_sideL_g", new Vector3(ex-0.95f, ey+1.25f, ez-0.15f), new Vector3(0.4f, 1.6f, 0.02f), glass);
-        box("n9_sideR", new Vector3(ex+0.95f, ey+1.2f, ez-0.12f), new Vector3(0.9f, 1.9f, 0.06f), metal);
-        box("n9_sideR_g", new Vector3(ex+0.95f, ey+1.25f, ez-0.15f), new Vector3(0.7f, 1.6f, 0.02f), glass);
-        box("n9_interphone", new Vector3(ex+0.55f, ey+1.35f, ez-0.18f), new Vector3(0.18f, 0.35f, 0.05f), M("interphone",null,null,new Color(.15f,.15f,.16f),0.4f));
-        // handle
-        box("n9_handle", new Vector3(ex-0.55f, ey+1.05f, ez-0.22f), new Vector3(0.04f, 0.55f, 0.04f), M("handle_brushed",null,null,new Color(.7f,.72f,.74f),0.6f));
-        // roller shutter window left of door
-        box("n9_shutter", new Vector3(ex-2.4f, ey+1.4f, ez-0.1f), new Vector3(1.3f, 1.4f, 0.08f), M("shutter_grey",null,null,new Color(.72f,.73f,.74f),0.25f));
-        // asphalt forecourt + kerbs + manhole + pebbles right + log fence left
-        box("n9_forecourt", new Vector3(ex, ey+0.02f, ez-3.2f), new Vector3(7.5f, 0.05f, 5.5f), asp);
-        box("n9_kerbL", new Vector3(ex-3.6f, ey+0.08f, ez-3.0f), new Vector3(0.2f, 0.15f, 5.0f), concrete);
-        box("n9_kerbR", new Vector3(ex+3.6f, ey+0.08f, ez-3.0f), new Vector3(0.2f, 0.15f, 5.0f), concrete);
-        box("n9_pebbles", new Vector3(ex+2.8f, ey+0.06f, ez-1.2f), new Vector3(1.4f, 0.08f, 2.2f), pebble);
-        box("n9_manhole", new Vector3(ex+1.8f, ey+0.045f, ez-2.5f), new Vector3(0.7f, 0.03f, 0.7f), M("mh",null,null,new Color(.35f,.36f,.37f),0.4f));
-        // log fence left of forecourt
-        for(int i=0;i<4;i++){ float zz=ez-1.5f-i*1.2f; float xx=ex-3.9f; var p0=new Vector3(xx,gy(xx,zz),zz);
+          lamp.transform.position=new Vector3(ex-0.65f, ey+2.55f, ez+0.85f); lamp.transform.localScale=Vector3.one*0.22f;
+          var lm=M("globe_lamp",null,null,new Color(.95f,.95f,.90f),0.85f); EnsureUrp(lm);
+          lamp.GetComponent<MeshRenderer>().sharedMaterial=lm; }
+        // door + angled panel + sidelights (facing west)
+        box("n9_door", new Vector3(ex-0.12f, ey+1.1f, ez-0.15f), new Vector3(0.08f, 2.15f, 1.0f), metal);
+        box("n9_door_glass", new Vector3(ex-0.16f, ey+1.25f, ez-0.15f), new Vector3(0.02f, 1.5f, 0.75f), glass);
+        box("n9_door_angle", new Vector3(ex-0.14f, ey+1.15f, ez+0.25f), new Vector3(0.06f, 1.7f, 0.55f), metal);
+        box("n9_sideL", new Vector3(ex-0.12f, ey+1.2f, ez-0.95f), new Vector3(0.06f, 1.9f, 0.55f), metal);
+        box("n9_sideL_g", new Vector3(ex-0.15f, ey+1.25f, ez-0.95f), new Vector3(0.02f, 1.6f, 0.4f), glass);
+        box("n9_sideR", new Vector3(ex-0.12f, ey+1.2f, ez+0.95f), new Vector3(0.06f, 1.9f, 0.9f), metal);
+        box("n9_sideR_g", new Vector3(ex-0.15f, ey+1.25f, ez+0.95f), new Vector3(0.02f, 1.6f, 0.7f), glass);
+        box("n9_interphone", new Vector3(ex-0.18f, ey+1.35f, ez+0.55f), new Vector3(0.05f, 0.35f, 0.18f), M("interphone",null,null,new Color(.15f,.15f,.16f),0.4f));
+        box("n9_handle", new Vector3(ex-0.22f, ey+1.05f, ez-0.55f), new Vector3(0.04f, 0.55f, 0.04f), M("handle_brushed",null,null,new Color(.7f,.72f,.74f),0.6f));
+        box("n9_shutter", new Vector3(ex-0.10f, ey+1.4f, ez-2.4f), new Vector3(0.08f, 1.4f, 1.3f), M("shutter_grey",null,null,new Color(.72f,.73f,.74f),0.25f));
+        // asphalt forecourt west of door
+        box("n9_forecourt", new Vector3(ex-3.2f, ey+0.02f, ez), new Vector3(5.5f, 0.05f, 7.5f), asp);
+        box("n9_kerbL", new Vector3(ex-3.0f, ey+0.08f, ez-3.6f), new Vector3(5.0f, 0.15f, 0.2f), concrete);
+        box("n9_kerbR", new Vector3(ex-3.0f, ey+0.08f, ez+3.6f), new Vector3(5.0f, 0.15f, 0.2f), concrete);
+        box("n9_pebbles", new Vector3(ex-1.2f, ey+0.06f, ez+2.8f), new Vector3(2.2f, 0.08f, 1.4f), pebble);
+        box("n9_manhole", new Vector3(ex-2.5f, ey+0.045f, ez+1.8f), new Vector3(0.7f, 0.03f, 0.7f), M("mh",null,null,new Color(.35f,.36f,.37f),0.4f));
+        for(int i=0;i<4;i++){ float xx=ex-1.5f-i*1.2f; float zz=ez-3.9f; var p0=new Vector3(xx,gy(xx,zz),zz);
             log($"n9_fence_post_{i}", p0+Vector3.down*0.15f, p0+Vector3.up*0.85f, 0.06f);
-            if(i>0){ var prev=new Vector3(xx,gy(xx,zz+1.2f),zz+1.2f); foreach(var h in new[]{0.4f,0.75f}) log($"n9_fence_rail_{i}_{h}",prev+Vector3.up*h,p0+Vector3.up*h,0.045f); } }
+            if(i>0){ var prev=new Vector3(xx+1.2f,gy(xx+1.2f,zz),zz); foreach(var h in new[]{0.4f,0.75f}) log($"n9_fence_rail_{i}_{h}",prev+Vector3.up*h,p0+Vector3.up*h,0.045f); } }
 
         // ===== 03: aggregate footpath along block west/base + kerb + shed + lamp + CCTV =====
         for(float z=117f; z<=155f; z+=1.2f){
@@ -736,8 +839,8 @@ public static class ValVertWoods {
         var rockPrefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/InnerverseInteractive/Ultimate Nature – Starter/Environment/Rocks/Forest/Prefabs/UNS_Standard_Rock_03.prefab");
         foreach(var (bx,bz,sc) in new[]{(368.5f,175.2f,1.0f),(370.2f,174.8f,0.85f),(372.0f,175.5f,1.1f)}){
             GameObject bo;
-            if(rockPrefab!=null){ bo=(GameObject)Object.Instantiate(rockPrefab); foreach(var c in bo.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c); }
-            else { bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>()); if(rockM) bo.GetComponent<MeshRenderer>().sharedMaterial=rockM; }
+            bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>());
+            { var rm=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/rock.mat")??rockM??wood; EnsureUrp(rm); bo.GetComponent<MeshRenderer>().sharedMaterial=rm; }
             bo.name=$"vv_verge_boulder_{bx}"; bo.transform.SetParent(root.transform,false);
             bo.transform.localScale=new Vector3(sc,sc*0.65f,sc*0.9f);
             float gy0=gy(bx,bz); var rend=bo.GetComponentsInChildren<MeshRenderer>();
@@ -765,8 +868,8 @@ public static class ValVertWoods {
         // ===== 10: extra mossy boulders at car-park edge (complements LogStairsDress row) =====
         foreach(var (bx,bz,sc) in new[]{(366.5f,126.8f,1.2f),(367.8f,125.0f,0.95f),(378.0f,118.0f,1.05f)}){
             GameObject bo;
-            if(rockPrefab!=null){ bo=(GameObject)Object.Instantiate(rockPrefab); foreach(var c in bo.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c); }
-            else { bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>()); if(rockM) bo.GetComponent<MeshRenderer>().sharedMaterial=rockM; }
+            bo=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(bo.GetComponent<Collider>());
+            { var rm=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/rock.mat")??rockM??wood; EnsureUrp(rm); bo.GetComponent<MeshRenderer>().sharedMaterial=rm; }
             bo.name=$"park_edge_boulder_{bx}"; bo.transform.SetParent(root.transform,false);
             bo.transform.localScale=new Vector3(sc,sc*0.6f,sc*0.85f); bo.transform.rotation=Quaternion.Euler(8,40,-10);
             float gy0=gy(bx,bz); var rend=bo.GetComponentsInChildren<MeshRenderer>();

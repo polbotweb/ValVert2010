@@ -35,6 +35,29 @@ public static class ValVertReview {
     static Camera cam; static ValVertClock clk; static ValVertSeasons sea; static ValVertStreetLights sl; static ValVertWeather w;
     static System.Collections.Generic.Dictionary<Material,Color> carColorCache=new System.Collections.Generic.Dictionary<Material,Color>();
     const string D="/workspace/valvert/review/";
+    static bool PixelErrorGuard(Texture2D tx, string tag){
+        var px=tx.GetPixels32(); int mag=0, cyan=0, wash=0; long sum=0;
+        for(int i=0;i<px.Length;i++){ var c=px[i]; sum+=c.r+c.g+c.b;
+            if(c.r>200&&c.g<90&&c.b>200) mag++;
+            if(c.r<90&&c.g>180&&c.b>180&&c.g+c.b>c.r*2+40) cyan++;
+            if(c.r>248&&c.g>248&&c.b>248) wash++; }
+        float mp=100f*mag/px.Length, cp=100f*cyan/px.Length, wp=100f*wash/px.Length, mean=sum/(3f*px.Length);
+        if(mp>0.15f||cp>0.15f){ Debug.LogError($"[VV] REVIEW PIXEL GUARD FAIL {tag} magenta={mp:F2}% cyan={cp:F2}%"); return true; }
+        if(wp>55f && mean>220f){ Debug.LogError($"[VV] REVIEW PIXEL GUARD FAIL {tag} washed-white={wp:F1}% mean={mean:F1}"); return true; }
+        return false;
+    }
+    static void MaterialGuardOrExit(string tag){
+        int bad=0;
+        foreach(var r in Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include,FindObjectsSortMode.None)){
+            foreach(var m in r.sharedMaterials){
+                if(m==null||m.shader==null||m.shader.name.Contains("InternalError")){
+                    bad++; Debug.LogError($"[VV] REVIEW BAD MAT {tag} {r.name}/{(m?m.name:"null")} shader={(m&&m.shader?m.shader.name:"null")}");
+                }
+            }
+        }
+        if(bad>0){ Debug.LogError($"[VV] REVIEW MATERIAL GUARD FAIL {tag} bad={bad}"); EditorApplication.Exit(4); }
+    }
+
     static void Place(Vector3 p,Vector3 dir,bool ortho=false,float osize=80f){
         Terrain terr=Terrain.activeTerrain;
         foreach(var tt in Terrain.activeTerrains){ var tp=tt.transform.position; var sz=tt.terrainData.size;
@@ -53,6 +76,7 @@ public static class ValVertReview {
         sea.Tick(); clk.Apply(); sl.Tick();
         if(winter) w.ForceSnowCover(0.92f, snowFall);
         else { w.ClearSnowVisuals(); sea.snowCover=0f; sea.Tick(); }
+        ValVertWoods.HealFoliage(); ValVertWoods.HealTreePrototypes();
         // Hard-assert snow albedo on Aldi lot meshes (sharedMaterial path can miss instance mats)
         if(winter){
           var snowTex=AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/ValVert/Gen/snow/asphalt_ww_diff_s4.jpg");
@@ -101,7 +125,9 @@ public static class ValVertReview {
         w.Prewarm(winter ? 2f : 2.5f);
         var rt=new RenderTexture(1280,720,24); cam.targetTexture=rt; cam.Render();
         RenderTexture.active=rt; var tx=new Texture2D(1280,720,TextureFormat.RGB24,false);
-        tx.ReadPixels(new Rect(0,0,1280,720),0,0); File.WriteAllBytes(path,tx.EncodeToPNG());
+        tx.ReadPixels(new Rect(0,0,1280,720),0,0); tx.Apply();
+        if(PixelErrorGuard(tx, path)){ File.WriteAllBytes(path+".bad.png",tx.EncodeToPNG()); RenderTexture.active=null; cam.targetTexture=null; Object.DestroyImmediate(rt); Object.DestroyImmediate(tx); EditorApplication.Exit(5); return; }
+        File.WriteAllBytes(path,tx.EncodeToPNG());
         RenderTexture.active=null; cam.targetTexture=null; Object.DestroyImmediate(rt); Object.DestroyImmediate(tx);
         Debug.Log($"[VV] REVIEW {path} seasonLeaf={sea.LeafCover:F2} autumn={sea.Autumn:F2} snow={w.SnowCover:F2} fall={w.Snowfall:F2}");
     }
@@ -156,6 +182,8 @@ public static class ValVertReview {
             if(ch) r.sharedMaterials=ms;
         }
         Debug.Log($"[VV] REVIEW magenta fixes={magFix} bollardFixes={bollardFix}");
+        int moreFix=ValVertWoods.FixBrokenMaterials(); int heal=ValVertWoods.HealFoliage(); Debug.Log($"[VV] REVIEW FixBrokenMaterials={moreFix} foliageHeal={heal}");
+        MaterialGuardOrExit("post-fix");
         cam=new GameObject("review_cam").AddComponent<Camera>(); cam.nearClipPlane=0.08f;
         sl.viewer=cam.transform; w.viewer=cam.transform; w.BuildShells();
         w.particleRateScale=1f;
@@ -174,6 +202,7 @@ public static class ValVertReview {
         foreach(var loc in locs){
             string ld=D+"frames/"+loc.id+"/"; Directory.CreateDirectory(ld);
             Place(loc.p,loc.dir,loc.ortho,loc.osize);
+            Shot("/tmp/vv_warmup.png", 7,15,12.5f, false, 0f);
             foreach(var s in seasons){
                 float rise=6,set=18,noon=12,maxAlt=-90,prev=-90;
                 for(float h=0;h<24;h+=1f/12f){ clk.Set(s.mo,s.d,h); float a=clk.SunAltitudeDeg;
@@ -212,6 +241,58 @@ public static class ValVertReview {
         UnityEditor.SceneManagement.EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
         AssetDatabase.SaveAssets();
         Debug.Log("[VV] REVIEW FRAMES DONE");
+        EditorApplication.Exit(0);
+    }
+
+    public static void SiteSheets(){
+        UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/ValVert.unity");
+        ValVertDress.RepairTreePrototypes();
+        var go=ValVertEnvWire.Wire(); clk=go.GetComponent<ValVertClock>(); sea=go.GetComponent<ValVertSeasons>();
+        sl=go.GetComponent<ValVertStreetLights>(); w=go.GetComponent<ValVertWeather>();
+        ValVertWeatherWire.Wire(go); w=go.GetComponent<ValVertWeather>();
+        var sa=GameObject.Find("V3_StairApproach"); if(sa) Object.DestroyImmediate(sa);
+        if(ValVertWoods.MATS==null) ValVertWoods.MATS=new System.Collections.Generic.Dictionary<string,Material>();
+        var rock=AssetDatabase.LoadAssetAtPath<Material>("Assets/ValVert/Mats/rock.mat");
+        if(rock!=null){ ValVertWoods.EnsureUrp(rock); ValVertWoods.MATS["rock"]=rock; }
+        ValVertWoods.StairApproach();
+        int more=ValVertWoods.FixBrokenMaterials(); int heal=ValVertWoods.HealFoliage(); int proto=ValVertWoods.HealTreePrototypes();
+        foreach(var t in Terrain.activeTerrains){ if(t) t.drawTreesAndFoliage=false; }
+        Debug.Log($"[VV] SITESHEETS FixBroken={more} foliageHeal={heal} protoHeal={proto} terrainTrees=off");
+        MaterialGuardOrExit("sitesheets");
+        cam=new GameObject("sitesheets_cam").AddComponent<Camera>();
+        sl.viewer=cam.transform; w.viewer=cam.transform; w.BuildShells();
+        var seasons=new (string id,int mo,int d)[]{ ("spring",4,20),("summer",7,15),("autumn",10,25),("winter",1,20) };
+        var locs=new (string id,Vector3 p,Vector3 dir,bool ortho,float osize)[]{
+            ("stairs",new Vector3(364.3f,0,123.2f),new Vector3(-0.15f,0.05f,0.99f),false,0),
+            ("valvert",new Vector3(450f,0,108f),new Vector3(0.95f,-0.05f,0.2f),false,0),
+            ("woods",new Vector3(349f,0,134.6f),new Vector3(0.35f,0.02f,1f),false,0),
+        };
+        foreach(var loc in locs){
+            string ld=D+"frames/"+loc.id+"/"; Directory.CreateDirectory(ld);
+            Place(loc.p,loc.dir,loc.ortho,loc.osize);
+            // Discard first frame — URP/sky/shells often wash out before first settled Tick
+            Shot("/tmp/vv_warmup.png", 7,15,12.5f, false, 0f);
+            foreach(var ssn in seasons){
+                float rise=6,set=18,noon=12,maxAlt=-90,prev=-90;
+                for(float h=5f;h<=21f;h+=0.25f){ clk.Set(ssn.mo,ssn.d,h); float a=clk.SunAltitudeDeg;
+                    if(prev<0&&a>=0) rise=h; if(prev>=0&&a<0) set=h; if(a>maxAlt){maxAlt=a;noon=h;} prev=a; }
+                var times=new (string id,float h)[]{ ("dawn",rise+0.3f),("midday",noon),("dusk", ssn.id=="winter" ? set-0.6f : set+0.2f),("night",22.5f) };
+                foreach(var t in times){
+                    bool win=ssn.id=="winter";
+                    float fall = win ? ((t.id=="midday") ? 0.20f : 0.03f) : 0f;
+                    w.particleRateScale = win ? ((t.id=="midday") ? 0.5f : 0.2f) : 1f;
+                    Shot($"{ld}{ssn.id}_{t.id}.png", ssn.mo,ssn.d,t.h, win, fall);
+                    if(!win && t.id=="midday"){
+                        if(w.SnowCover>0.05f){ Debug.LogError($"[VV] REVIEW SNOW LEAK {loc.id}/{ssn.id}"); EditorApplication.Exit(3); return; }
+                        Debug.Log($"[VV] REVIEW SNOW CLEAR OK {loc.id}/{ssn.id}_{t.id} snow={w.SnowCover:F2}");
+                    }
+                }
+            }
+            Debug.Log("[VV] SITESHEETS loc done "+loc.id);
+        }
+        w.Force(ValVertWeather.Kind.Clear); w.ClearSnowVisuals(); w.Force(ValVertWeather.Kind.Auto); w.particleRateScale=1f; w.ClearShells();
+        Object.DestroyImmediate(cam.gameObject);
+        Debug.Log("[VV] SITESHEETS DONE");
         EditorApplication.Exit(0);
     }
 }
