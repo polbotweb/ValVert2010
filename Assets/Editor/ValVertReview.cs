@@ -122,6 +122,11 @@ public static class ValVertReview {
           }
           if(carColorCache.Count>0) foreach(var kv in carColorCache) if(kv.Key) kv.Key.SetColor("_BaseColor", kv.Value);
         }
+        if(!winter){
+          RenderSettings.ambientMode=UnityEngine.Rendering.AmbientMode.Flat;
+          if(RenderSettings.ambientLight.maxColorComponent<0.40f)
+            RenderSettings.ambientLight=new Color(0.45f,0.47f,0.50f);
+        }
         w.Prewarm(winter ? 2f : 2.5f);
         var rt=new RenderTexture(1280,720,24); cam.targetTexture=rt; cam.Render();
         RenderTexture.active=rt; var tx=new Texture2D(1280,720,TextureFormat.RGB24,false);
@@ -256,8 +261,8 @@ public static class ValVertReview {
         if(rock!=null){ ValVertWoods.EnsureUrp(rock); ValVertWoods.MATS["rock"]=rock; }
         ValVertWoods.StairApproach();
         int more=ValVertWoods.FixBrokenMaterials(); int heal=ValVertWoods.HealFoliage(); int proto=ValVertWoods.HealTreePrototypes();
-        foreach(var t in Terrain.activeTerrains){ if(t) t.drawTreesAndFoliage=false; }
-        Debug.Log($"[VV] SITESHEETS FixBroken={more} foliageHeal={heal} protoHeal={proto} terrainTrees=off");
+        foreach(var t in Terrain.activeTerrains){ if(t){ t.drawTreesAndFoliage=true; if(t.terrainData!=null) t.terrainData.RefreshPrototypes(); } }
+        Debug.Log($"[VV] SITESHEETS FixBroken={more} foliageHeal={heal} protoHeal={proto} terrainTrees=on");
         MaterialGuardOrExit("sitesheets");
         cam=new GameObject("sitesheets_cam").AddComponent<Camera>();
         sl.viewer=cam.transform; w.viewer=cam.transform; w.BuildShells();
