@@ -29,9 +29,9 @@ public class ValVertClock : MonoBehaviour
     public Material overcastSkybox;
     public Material blendSkybox;   // ValVert/SkyBlend: clear panorama -> overcast deck, cross-faded by cloud cover (preferred)
     public float skyBaseExposure = 0.9f; public Color skyBaseTint = new Color(.62f, .63f, .64f); // grey cloud-deck panorama used when the sky is fully overcast with precipitation/fog
-    public Color nightAmbient = new Color(0.030f, 0.040f, 0.070f);   // starlight/airglow + urban skyglow (Annecy basin)
+    public Color nightAmbient = new Color(0.070f, 0.085f, 0.130f);   // readable night (still clearly nocturnal)
     public Color dayAmbient = new Color(0.58f, 0.57f, 0.54f);   // neutral-warm (removed blue cast)
-    public float sunMaxIntensity = 1.25f, moonIntensity = 0.12f;
+    public float sunMaxIntensity = 1.25f, moonIntensity = 0.32f;   // was 0.12 — too black in review nights
     public Gradient sunColor;
     [Header("Weather inputs (set by ValVertWeather)")]
     [Range(0, 1)] public float cloudCover = 0.3f;
@@ -163,8 +163,12 @@ public class ValVertClock : MonoBehaviour
         float twilight = 1f - Mathf.Abs(Daylight01 * 2f - 1f);
         // sky light follows twilight more slowly than direct sun: civil twilight (sun -6..0) stays readable
         float sky = Mathf.SmoothStep(0, 1, Mathf.InverseLerp(-9f, 3f, SunAltitudeDeg));
-        Color moonAmb = new Color(0.05f, 0.065f, 0.11f) * MoonIllumination * Mathf.Clamp01(MoonAltitudeDeg / 15f);
+        Color moonAmb = new Color(0.10f, 0.12f, 0.18f) * Mathf.Max(0.35f, MoonIllumination) * Mathf.Clamp01(MoonAltitudeDeg / 8f + 0.25f);
         RenderSettings.ambientLight = Color.Lerp(Color.Lerp(nightAmbient + moonAmb, dayAmbient, sky), dusk, twilight * 0.35f);
+        if (Daylight01 < 0.15f) {
+            var a = RenderSettings.ambientLight; var n = nightAmbient * 0.9f;
+            RenderSettings.ambientLight = new Color(Mathf.Max(a.r,n.r), Mathf.Max(a.g,n.g), Mathf.Max(a.b,n.b), 1f);
+        }
         RenderSettings.ambientLight = Color.Lerp(RenderSettings.ambientLight, new Color(.6f,.61f,.62f) * Mathf.Lerp(0.15f, 1f, sky), cloudCover * 0.5f * sky);   // overcast: flatter grey skylight
         RenderSettings.fogColor = Color.Lerp(new Color(.03f, .035f, .045f), Color.Lerp(new Color(.72f, .72f, .70f), new Color(.62f, .63f, .64f), cloudCover), Daylight01);
         RenderSettings.fog = true; RenderSettings.fogMode = FogMode.ExponentialSquared;

@@ -47,11 +47,12 @@ public static class ValVertReview {
     }
     static void Shot(string path,int mo,int d,float h, bool winter=false, float snowFall=0.02f){
         clk.Set(mo,d,h);
-        if(winter) w.Force(ValVertWeather.Kind.Snow); else w.Force(ValVertWeather.Kind.Clear);
+        if(winter) w.Force(ValVertWeather.Kind.Snow); else { w.Force(ValVertWeather.Kind.Clear); w.ClearSnowVisuals(); }
         w.Tick();
+        if(!winter) w.ClearSnowVisuals(); // Settle/Tick must not leave snow albedo on mats/terrain layers
         sea.Tick(); clk.Apply(); sl.Tick();
-        // AFTER seasons (they swap asphalt litter textures) re-apply snow albedo so cover persists visually
         if(winter) w.ForceSnowCover(0.92f, snowFall);
+        else { w.ClearSnowVisuals(); sea.snowCover=0f; sea.Tick(); }
         // Hard-assert snow albedo on Aldi lot meshes (sharedMaterial path can miss instance mats)
         if(winter){
           var snowTex=AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/ValVert/Gen/snow/asphalt_ww_diff_s4.jpg");
@@ -183,11 +184,29 @@ public static class ValVertReview {
                     float fall = win ? ((t.id=="midday") ? 0.20f : 0.03f) : 0f;
                     w.particleRateScale = win ? ((t.id=="midday") ? 0.5f : 0.2f) : 1f;
                     Shot($"{ld}{s.id}_{t.id}.png", s.mo,s.d,t.h, win, fall);
+                    // Guard: non-winter must not retain snow cover / snow albedo on terrain layers
+                    if(!win && (t.id=="midday")){
+                        if(w.SnowCover > 0.05f){
+                            Debug.LogError($"[VV] REVIEW SNOW LEAK: {loc.id}/{s.id}_{t.id} SnowCover={w.SnowCover:F2} (expected ~0)");
+                            EditorApplication.Exit(3); return;
+                        }
+                        int snowTexHits=0;
+                        foreach(var l in w.snowLayers){
+                            if(!l.layer||!l.layer.diffuseTexture) continue;
+                            string tn=l.layer.diffuseTexture.name;
+                            if(tn.Contains("_s3")||tn.Contains("_s4")||tn.Contains("slush_s")) snowTexHits++;
+                        }
+                        if(snowTexHits>0){
+                            Debug.LogError($"[VV] REVIEW SNOW LEAK: {loc.id}/{s.id} terrain layers still on snow step textures (hits={snowTexHits})");
+                            EditorApplication.Exit(3); return;
+                        }
+                        Debug.Log($"[VV] REVIEW SNOW CLEAR OK {loc.id}/{s.id}_{t.id} snow={w.SnowCover:F2} snowTexHits=0");
+                    }
                 }
             }
             Debug.Log("[VV] REVIEW loc done "+loc.id);
         }
-        w.Force(ValVertWeather.Kind.Auto); w.particleRateScale=1f; w.ClearShells();
+        w.Force(ValVertWeather.Kind.Clear); w.ClearSnowVisuals(); w.Force(ValVertWeather.Kind.Auto); w.particleRateScale=1f; w.ClearShells();
         Object.DestroyImmediate(cam.gameObject);
         // Persist repaired tree protos + stair approach into the scene for the game on this box
         UnityEditor.SceneManagement.EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
