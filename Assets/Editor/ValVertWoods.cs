@@ -23,12 +23,50 @@ public static class ValVertWoods {
         if(lit==null) return;
         if(m.shader==null || m.shader.name.Contains("InternalError") || !m.shader.isSupported) m.shader=lit;
     }
+    static void ConvertLeavesUrpInPlace(Material m, Material leafFallback, Material barkFallback, bool wantBark){
+        if(!m) return;
+        var lit=Shader.Find("Universal Render Pipeline/Lit"); if(lit==null) return;
+        string sn=m.shader?m.shader.name:"";
+        bool isLeaves=sn.Contains("Leaves")||sn.Contains("Nature")||sn.Contains("InternalError")||sn.Contains("Hidden/")||!m.shader.isSupported;
+        if(!isLeaves && sn.Contains("Universal Render Pipeline/Lit")){
+            // already Lit — ensure cutout keywords for leaf slots
+            if(!wantBark){ m.SetFloat("_AlphaClip",1); m.SetFloat("_Cutoff",0.4f); m.EnableKeyword("_ALPHATEST_ON"); m.renderQueue=2450; }
+            return;
+        }
+        // Preserve best albedo from ShaderGraph Texture2D_* or _BaseMap/_MainTex before swapping shader
+        Texture2D keep=null;
+        if(m.HasProperty("_BaseMap")) keep=m.GetTexture("_BaseMap") as Texture2D;
+        if(!keep && m.HasProperty("_MainTex")) keep=m.GetTexture("_MainTex") as Texture2D;
+        foreach(var id in m.GetTexturePropertyNames()){
+            if(keep!=null) break;
+            if(id.StartsWith("Texture2D_")||id.Contains("Albedo")||id.Contains("Base")||id.Contains("Leaf")||id.Contains("Color")){
+                var tx=m.GetTexture(id) as Texture2D; if(tx) keep=tx;
+            }
+        }
+        m.shader=lit;
+        if(wantBark){
+            if(keep) m.SetTexture("_BaseMap",keep); else if(barkFallback&&barkFallback.HasProperty("_BaseMap")) m.SetTexture("_BaseMap",barkFallback.GetTexture("_BaseMap"));
+            m.SetFloat("_AlphaClip",0); m.DisableKeyword("_ALPHATEST_ON"); m.renderQueue=2000;
+            if(m.HasProperty("_BaseColor") && m.GetColor("_BaseColor").maxColorComponent<0.05f) m.SetColor("_BaseColor",new Color(.55f,.48f,.40f));
+        } else {
+            if(keep) m.SetTexture("_BaseMap",keep); else if(leafFallback&&leafFallback.HasProperty("_BaseMap")) m.SetTexture("_BaseMap",leafFallback.GetTexture("_BaseMap"));
+            m.SetFloat("_AlphaClip",1); m.SetFloat("_Cutoff",0.4f); m.EnableKeyword("_ALPHATEST_ON"); m.renderQueue=2450;
+            m.SetFloat("_Cull",0); m.doubleSidedGI=true;
+            if(m.HasProperty("_BaseColor")){
+                var c=m.GetColor("_BaseColor");
+                // mint/cyan leaf tint → natural green
+                if(c.g>0.7f && c.r<0.35f && c.b>0.45f) m.SetColor("_BaseColor",new Color(.45f,.58f,.28f));
+                else if(c.maxColorComponent<0.05f) m.SetColor("_BaseColor",new Color(.62f,.55f,.22f));
+            }
+        }
+        m.SetFloat("_Metallic",0f); m.SetFloat("_Smoothness",0.08f);
+        EditorUtility.SetDirty(m);
+    }
     public static int HealFoliage(){
-        // EF / UNS foliage shaders often draw cyan/magenta under batch URP when textures/props drift.
-        // Force a known-good URP Lit cutout leaf (and bark) onto every tree/leaf renderer.
+        // Convert EF Leaves_URP (cyan in batchmode) to URP Lit cutout in-place; never touch cars.
         var leafTex=ValVertDress.Tex("Assets/ValVert/Ground/forest_leaves_02_diff.jpg");
         var barkTex=ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_diff_1k.jpg");
-        var leaf=ValVertDress.Mat("heal_foliage",leafTex,null,true,new Color(.42f,.55f,.26f),0.08f);
+        var leaf=ValVertDress.Mat("heal_foliage",leafTex,null,true,new Color(.62f,.55f,.22f),0.08f);
         var bark=ValVertDress.Mat("heal_bark",barkTex,null,false,new Color(.55f,.48f,.40f),0.08f);
         EnsureUrp(leaf); EnsureUrp(bark); int n=0;
         foreach(var r in Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include,FindObjectsSortMode.None)){
@@ -36,15 +74,23 @@ public static class ValVertWoods {
             string go=r.gameObject.name.ToLowerInvariant();
             string path="";
             var t=r.transform; int guard=0;
-            while(t!=null && guard++<8){ path=t.name.ToLowerInvariant()+"/"+path; t=t.parent; }
-            bool treeish=path.Contains("tree")||path.Contains("ash")||path.Contains("birch")||path.Contains("chestnut")||path.Contains("spruce")||path.Contains("fir")||path.Contains("willow")||path.Contains("uns_")||path.Contains("european")||path.Contains("lod")||go.Contains("leaf")||go.Contains("leaves")||go.Contains("foliage")||go.Contains("bush")||go.Contains("branch")||go.Contains("canopy");
+            while(t!=null && guard++<10){ path=t.name.ToLowerInvariant()+"/"+path; t=t.parent; }
+            // CRITICAL: cars use LOD0/LOD1 — never treat them as foliage
+            if(path.Contains("v3_cars")||path.Contains("/car_")||go.StartsWith("car_")||path.Contains("cars2010")) continue;
+            bool treeish=path.Contains("tree")||path.Contains("ash")||path.Contains("birch")||path.Contains("chestnut")||path.Contains("spruce")||path.Contains("fir")||path.Contains("willow")||path.Contains("uns_")||path.Contains("european")||path.Contains("ef_")||go.Contains("leaf")||go.Contains("leaves")||go.Contains("foliage")||go.Contains("bush")||go.Contains("branch")||(go.Contains("canopy")&&!path.Contains("n9_"));
             if(!treeish) continue;
             var ms=r.sharedMaterials; bool ch=false;
             for(int i=0;i<ms.Length;i++){
-                var m=ms[i]; string mn=m?m.name.ToLowerInvariant():"";
+                var m=ms[i]; if(!m){ ms[i]=leaf; ch=true; n++; continue; }
+                string mn=m.name.ToLowerInvariant();
+                string sn=m.shader?m.shader.name:"";
                 bool wantBark=mn.Contains("bark")||mn.Contains("trunk")||mn.Contains("wood")||go.Contains("bark")||go.Contains("trunk");
-                var rep=wantBark?bark:leaf;
-                if(ms[i]!=rep){ ms[i]=rep; ch=true; n++; }
+                bool bad=sn.Contains("Leaves")||sn.Contains("Nature")||sn.Contains("InternalError")||sn.Contains("Hidden/")||!m.shader.isSupported
+                    || mn.Contains("leaf")||mn.Contains("leaves")||mn.Contains("foliage")||mn.Contains("branch")||mn.Contains("bush")
+                    || mn.Contains("ash")||mn.Contains("birch")||mn.Contains("chestnut")||mn.Contains("spruce")||mn.Contains("willow");
+                if(bad || sn.Contains("Leaves")){
+                    ConvertLeavesUrpInPlace(m, leaf, bark, wantBark); n++; ch=true;
+                }
             }
             if(ch) r.sharedMaterials=ms;
         }
@@ -53,11 +99,23 @@ public static class ValVertWoods {
     public static int HealTreePrototypes(){
         var leafTex=ValVertDress.Tex("Assets/ValVert/Ground/forest_leaves_02_diff.jpg");
         var barkTex=ValVertDress.Tex("Assets/ValVert/Veg/tex/fir_tree_01_bark_diff_1k.jpg");
-        var leaf=ValVertDress.Mat("heal_foliage",leafTex,null,true,new Color(.42f,.55f,.26f),0.08f);
+        var leaf=ValVertDress.Mat("heal_foliage",leafTex,null,true,new Color(.62f,.55f,.22f),0.08f);
         var bark=ValVertDress.Mat("heal_bark",barkTex,null,false,new Color(.55f,.48f,.40f),0.08f);
         EnsureUrp(leaf); EnsureUrp(bark); int n=0;
+        // Convert vendor leaf mats still on Leaves_URP shadergraph (Spruce/Willow etc.)
+        foreach(var guid in AssetDatabase.FindAssets("t:Material", new[]{"Assets/Realistic Tree/Source/Materials"})){
+            var path=AssetDatabase.GUIDToAssetPath(guid); var m=AssetDatabase.LoadAssetAtPath<Material>(path); if(!m||!m.shader) continue;
+            string sn=m.shader.name; string mn=m.name.ToLowerInvariant();
+            bool wantBark=mn.Contains("bark")||path.Contains("/Bark/");
+            if(sn.Contains("Leaves")||sn.Contains("Nature")||sn.Contains("InternalError")){
+                ConvertLeavesUrpInPlace(m, leaf, bark, wantBark); n++;
+            } else if(sn.Contains("Universal Render Pipeline/Lit") && (mn.Contains("leaf")||path.Contains("/Leaves/"))){
+                ConvertLeavesUrpInPlace(m, leaf, bark, false); // ensure cutout keywords
+            }
+        }
         foreach(var terr in Terrain.activeTerrains){
             if(!terr||terr.terrainData==null) continue;
+            terr.drawTreesAndFoliage=true;
             var protos=terr.terrainData.treePrototypes;
             bool dirty=false;
             for(int pi=0;pi<protos.Length;pi++){
@@ -65,36 +123,30 @@ public static class ValVertWoods {
                 foreach(var r in pref.GetComponentsInChildren<Renderer>(true)){
                     var ms=r.sharedMaterials; bool ch=false;
                     for(int i=0;i<ms.Length;i++){
-                        var m=ms[i]; string mn=m?m.name.ToLowerInvariant():"";
-                        string sn=m&&m.shader?m.shader.name:"";
+                        var m=ms[i];
+                        if(m==null){ ms[i]=leaf; ch=true; n++; continue; }
+                        string mn=m.name.ToLowerInvariant();
+                        string sn=m.shader?m.shader.name:"";
                         bool wantBark=mn.Contains("bark")||mn.Contains("trunk")||mn.Contains("wood")||r.gameObject.name.ToLower().Contains("bark")||r.gameObject.name.ToLower().Contains("trunk");
-                        bool bad=m==null||m.shader==null||sn.Contains("InternalError")||sn.Contains("Hidden/")
-                            || sn.Contains("Leaves")||sn.Contains("Nature")||mn.Contains("leaf")||mn.Contains("leaves")||mn.Contains("foliage")||mn.Contains("branch")||mn.Contains("bush");
-                        // Always force leaf/bark slots on prototypes onto known-good URP Lit (EF Leaves_URP draws cyan when props drift)
-                        if(wantBark){ if(ms[i]!=bark){ ms[i]=bark; ch=true; n++; } }
-                        else if(bad || mn.Contains("leaf")||mn.Contains("leaves")||mn.Contains("ash")||mn.Contains("birch")||mn.Contains("chestnut")||mn.Contains("spruce")||mn.Contains("fir")||mn.Contains("uns")){
-                            if(ms[i]!=leaf){ ms[i]=leaf; ch=true; n++; }
-                        } else EnsureUrp(m);
+                        bool bad=sn.Contains("InternalError")||sn.Contains("Hidden/")||sn.Contains("Leaves")||sn.Contains("Nature")
+                            || mn.Contains("leaf")||mn.Contains("leaves")||mn.Contains("foliage")||mn.Contains("branch")||mn.Contains("bush")
+                            || mn.Contains("ash")||mn.Contains("birch")||mn.Contains("chestnut")||mn.Contains("spruce")||mn.Contains("willow")||mn.Contains("fir");
+                        if(wantBark){ ConvertLeavesUrpInPlace(m, leaf, bark, true); n++; ch=true; }
+                        else if(bad){ ConvertLeavesUrpInPlace(m, leaf, bark, false); n++; ch=true; }
+                        else EnsureUrp(m);
                     }
                     if(ch){ r.sharedMaterials=ms; dirty=true; EditorUtility.SetDirty(pref); }
                 }
             }
-            if(dirty){ terr.terrainData.treePrototypes=protos; EditorUtility.SetDirty(terr.terrainData); }
+            if(dirty){ terr.terrainData.treePrototypes=protos; terr.terrainData.RefreshPrototypes(); EditorUtility.SetDirty(terr.terrainData); }
         }
-        // Also wipe foliage list materials that Season.Tick would retint into cyan — replace their shader with URP Lit
         var sea=Object.FindFirstObjectByType<ValVertSeasons>();
         if(sea!=null){
             foreach(var f in sea.foliage){
                 if(!f.mat) continue;
-                string sn=f.mat.shader?f.mat.shader.name:"";
-                if(sn.Contains("Leaves")||sn.Contains("InternalError")||sn.Contains("Hidden/")||!sn.Contains("Universal Render Pipeline/Lit")){
-                    f.mat.shader=Shader.Find("Universal Render Pipeline/Lit");
-                    if(leaf.HasProperty("_BaseMap") && leaf.GetTexture("_BaseMap")) f.mat.SetTexture("_BaseMap", leaf.GetTexture("_BaseMap"));
-                    f.mat.SetColor("_BaseColor", new Color(.42f,.55f,.26f));
-                    f.mat.SetFloat("_AlphaClip",1); f.mat.SetFloat("_Cutoff",0.4f); f.mat.EnableKeyword("_ALPHATEST_ON");
-                    f.texProp="_BaseMap"; f.colorProp="_BaseColor"; f.cutProp="_Cutoff";
-                    EditorUtility.SetDirty(f.mat); n++;
-                }
+                ConvertLeavesUrpInPlace(f.mat, leaf, bark, false);
+                f.texProp="_BaseMap"; f.colorProp="_BaseColor"; f.cutProp="_Cutoff";
+                n++;
             }
         }
         return n;
@@ -116,6 +168,23 @@ public static class ValVertWoods {
                     ms[i]= nm.Contains("rock")||nm.Contains("boulder") ? rock : (nm.Contains("fence")||nm.Contains("sleeper")||nm.Contains("post")||nm.Contains("rail")||nm.Contains("stump")||nm.Contains("log")||nm.Contains("hr_") ? wood : plaster);
                     ch=true; n++;
                 } else EnsureUrp(m);
+            }
+            if(ch) r.sharedMaterials=ms;
+        }
+        // Kill mint/cyan facade glass fills left from glass_green / bad season tints
+        foreach(var r in rends){
+            if(!r) continue;
+            var ms=r.sharedMaterials; bool ch=false;
+            for(int i=0;i<ms.Length;i++){
+                var m=ms[i]; if(!m||!m.HasProperty("_BaseColor")) continue;
+                var c=m.GetColor("_BaseColor");
+                string mn=m.name.ToLowerInvariant();
+                bool mint=(c.g>0.55f && c.r<0.40f && c.b>0.35f && c.b<0.75f) || mn.Contains("glass_green");
+                if(mint){
+                    m.SetColor("_BaseColor", new Color(.55f,.58f,.60f,c.a));
+                    if(m.HasProperty("_Metallic")) m.SetFloat("_Metallic",0.05f);
+                    EditorUtility.SetDirty(m); ch=true; n++;
+                }
             }
             if(ch) r.sharedMaterials=ms;
         }
@@ -219,7 +288,7 @@ public static class ValVertWoods {
             {"sign_blue_bay",M("sign_blue_bay",null,null,new Color(.08f,.3f,.75f),0.2f)},
             {"forest_fg02",M("forest_fg02",ValVertDress.Tex("Assets/ValVert/Veg/pilot6/fg02_diff.jpg"),ValVertDress.Tex("Assets/ValVert/Veg/pilot6/fg02_nor.jpg",true),Color.white,0.1f)},   // pilot6: Yughues CC0 forest ground, #9 bank + beds only
             {"bed_soil",M("bed_soil",ValVertDress.Tex(G+"stony_dirt_path_diff.jpg"),null,new Color(.55f,.45f,.38f),0.05f)},
-            {"glass_green",M("glass_green",null,null,new Color(.42f,.62f,.45f),0.8f,0.2f)},
+            {"glass_green",M("glass_green",null,null,new Color(.55f,.58f,.60f),0.85f,0.05f)},
             {"door_maroon",M("door_maroon",ValVertDress.Tex(GEN+"corrugated_iron_02_diff_1k.jpg"),null,new Color(.45f,.16f,.17f),0.3f)},
             {"rock",M("rock",ValVertDress.Tex(G+"rock_wall_08_diff.jpg"),ValVertDress.Tex(G+"rock_wall_08_nor.jpg",true),new Color(.8f,.8f,.78f),0.1f)},
             {"path_concrete",M("path_concrete",ValVertDress.Tex("Assets/ValVert/Ground/cc0/Concrete047A_col.jpg"),ValVertDress.Tex("Assets/ValVert/Ground/cc0/Concrete047A_nor.jpg",true),new Color(.8f,.8f,.78f),0.1f)},
@@ -707,6 +776,86 @@ public static class ValVertWoods {
     }
 
 
+    // Reusable Val Vert entrance: grey alu glazed door, side glazing, grey concrete canopy,
+    // house-number plaque, round wall lamp, intercom, roller shutter. Prefab saved once, instanced per OSM address.
+    public static GameObject BuildEntrancePrefab(){
+        string path="Assets/ValVert/Prefabs/vv_entrance.prefab";
+        Directory.CreateDirectory("Assets/ValVert/Prefabs");
+        var existing=AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        if(existing) return existing;
+        var root=new GameObject("vv_entrance");
+        var metal=M("door_alum_grey",null,null,new Color(.42f,.44f,.46f),0.45f,0.35f); EnsureUrp(metal);
+        var glass=M("door_glass",null,null,new Color(.62f,.70f,.78f,1f),0.85f,0.05f); EnsureUrp(glass);
+        var canopyMat=M("canopy",ValVertDress.Tex("Assets/ValVert/Gen/concrete_canopy.png"),null,new Color(.78f,.79f,.80f),0.18f,0.05f); EnsureUrp(canopyMat);
+        var interMat=M("interphone",ValVertDress.Tex("Assets/ValVert/Gen/intercom_panel.png"),null,Color.white,0.35f); EnsureUrp(interMat);
+        var shutMat=M("shutter_grey",ValVertDress.Tex("Assets/ValVert/Gen/roller_shutter.png"),null,Color.white,0.2f); EnsureUrp(shutMat);
+        var handle=M("handle_brushed",null,null,new Color(.7f,.72f,.74f),0.6f); EnsureUrp(handle);
+        var lampM=M("globe_lamp",null,null,new Color(.95f,.95f,.90f),0.85f); EnsureUrp(lampM);
+        System.Action<string,Vector3,Vector3,Material> box=(nm,pos,sc,mat)=>{
+            var q=GameObject.CreatePrimitive(PrimitiveType.Cube); Object.DestroyImmediate(q.GetComponent<Collider>());
+            q.name=nm; q.transform.SetParent(root.transform,false); q.transform.localPosition=pos; q.transform.localScale=sc;
+            if(mat) q.GetComponent<MeshRenderer>().sharedMaterial=mat;
+        };
+        // Local space: door faces -X (west). Origin at ground center of door threshold.
+        box("canopy", new Vector3(-0.40f, 2.55f, 0f), new Vector3(0.70f, 0.28f, 4.4f), canopyMat);
+        box("plaque", new Vector3(-0.78f, 2.55f, -0.15f), new Vector3(0.04f, 0.32f, 0.32f), metal); // mat swapped per instance
+        { var lamp=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(lamp.GetComponent<Collider>());
+          lamp.name="wall_lamp"; lamp.transform.SetParent(root.transform,false);
+          lamp.transform.localPosition=new Vector3(-0.78f, 2.55f, 0.90f); lamp.transform.localScale=Vector3.one*0.20f;
+          lamp.GetComponent<MeshRenderer>().sharedMaterial=lampM; }
+        box("door_frame", new Vector3(-0.10f, 1.15f, -0.15f), new Vector3(0.10f, 2.25f, 1.15f), metal);
+        box("door_glass", new Vector3(-0.18f, 1.30f, -0.15f), new Vector3(0.03f, 1.55f, 0.85f), glass);
+        box("door_rail", new Vector3(-0.20f, 0.55f, -0.15f), new Vector3(0.04f, 0.12f, 0.85f), metal);
+        box("door_leaf_L", new Vector3(-0.16f, 1.15f, -0.40f), new Vector3(0.04f, 2.05f, 0.48f), metal);
+        box("door_leaf_R", new Vector3(-0.16f, 1.15f, 0.15f), new Vector3(0.04f, 2.05f, 0.48f), metal);
+        box("door_glass_L", new Vector3(-0.20f, 1.30f, -0.40f), new Vector3(0.02f, 1.45f, 0.36f), glass);
+        box("door_glass_R", new Vector3(-0.20f, 1.30f, 0.15f), new Vector3(0.02f, 1.45f, 0.36f), glass);
+        box("sideL", new Vector3(-0.10f, 1.2f, -0.95f), new Vector3(0.08f, 2.05f, 0.55f), metal);
+        box("sideL_g", new Vector3(-0.17f, 1.30f, -0.95f), new Vector3(0.03f, 1.65f, 0.42f), glass);
+        box("sideR", new Vector3(-0.10f, 1.2f, 1.05f), new Vector3(0.08f, 2.05f, 0.85f), metal);
+        box("sideR_g", new Vector3(-0.17f, 1.30f, 1.05f), new Vector3(0.03f, 1.65f, 0.68f), glass);
+        box("interphone", new Vector3(-0.22f, 1.40f, 0.55f), new Vector3(0.06f, 0.42f, 0.22f), interMat);
+        box("handle", new Vector3(-0.24f, 1.05f, -0.05f), new Vector3(0.05f, 0.55f, 0.05f), handle);
+        box("shutter", new Vector3(-0.12f, 1.45f, -2.45f), new Vector3(0.10f, 1.55f, 1.35f), shutMat);
+        var prefab=PrefabUtility.SaveAsPrefabAsset(root, path);
+        Object.DestroyImmediate(root);
+        L("saved entrance prefab "+path);
+        return prefab;
+    }
+
+    public static void PlaceValVertEntrances(){
+        var old=GameObject.Find("V3_Entrances"); if(old) Object.DestroyImmediate(old);
+        var root=new GameObject("V3_Entrances");
+        var pref=BuildEntrancePrefab();
+        System.Func<float,float,float> gy=(x,z)=>{ var t=Terrain.activeTerrain; float ty=t.SampleHeight(new Vector3(x,0,z))+t.transform.position.y; if(Physics.Raycast(new Vector3(x,ty+5f,z),Vector3.down,out var hh,10f)&&!(hh.collider is TerrainCollider)) return Mathf.Max(ty,hh.point.y); return ty; };
+        // OSM addr:housenumber on Rue du Val Vert (map.osm). West facade of 62591705 at x≈366.7 faces the ramp.
+        // Door facing: yaw 0 = local -X (west). Place each at west facade with Z from OSM address node.
+        var places=new (string num,float x,float z,float yaw)[]{
+            ("9",  366.70f, 122.40f, 0f),     // photo-matched west door
+            ("11", 366.70f, 138.70f, 0f),     // OSM 11 → west facade
+            ("13", 366.70f, 156.00f, 0f),     // OSM 13 → west facade
+            ("7",  393.80f, 102.90f, 180f),   // OSM 7 east of block, face east (+X)
+            ("14", 338.60f, 183.80f, 90f),    // OSM 14, face north-ish toward street
+        };
+        int n=0;
+        foreach(var pl in places){
+            var inst=(GameObject)PrefabUtility.InstantiatePrefab(pref);
+            inst.name="entrance_"+pl.num;
+            inst.transform.SetParent(root.transform,false);
+            float y=gy(pl.x,pl.z);
+            inst.transform.position=new Vector3(pl.x,y,pl.z);
+            // Prefab faces -X; yaw rotates around Y (0=west, 90=north, 180=east, 270=south)
+            inst.transform.rotation=Quaternion.Euler(0, pl.yaw, 0);
+            // Swap plaque material to correct number
+            var plaqueTex=ValVertDress.Tex($"Assets/ValVert/Gen/plaque_{pl.num}.png");
+            var plaqueMat=M($"plaque_{pl.num}", plaqueTex, null, Color.white, 0.25f); EnsureUrp(plaqueMat);
+            var plaque=inst.transform.Find("plaque");
+            if(plaque){ var mr=plaque.GetComponent<MeshRenderer>(); if(mr) mr.sharedMaterial=plaqueMat; }
+            n++;
+        }
+        L($"Val Vert entrances placed {n} (prefab vv_entrance)");
+    }
+
     // Batch2 photo refs (Nov 2026): nº9 entrance, ramp details, footpath, rear park lamps,
     // Val Vert junction/crossing/sidewalk, wood edge paths. 2010-safe (skip clearly post-2010 signage text).
     // No Aldi / car edits.
@@ -732,30 +881,9 @@ public static class ValVertWoods {
             g.transform.position=(a+b)/2; g.transform.up=(b-a).normalized; g.transform.localScale=new Vector3(r*2,Vector3.Distance(a,b)/2,r*2); EnsureUrp(wood); g.GetComponent<MeshRenderer>().sharedMaterial=wood; };
         System.Action<string,Vector3,Vector3,Material> box=(nm,pos,sc,mat)=>{ var q=GameObject.CreatePrimitive(PrimitiveType.Cube); Object.DestroyImmediate(q.GetComponent<Collider>()); q.name=nm; q.transform.SetParent(root.transform,false); q.transform.position=pos; q.transform.localScale=sc; if(mat) q.GetComponent<MeshRenderer>().sharedMaterial=mat; };
 
-        // ===== 01: nº9 entrance — west face of south wing onto ramp/forecourt (photos 01+08) =====
-        // Building west facade ~x 366.6 for z 116-126. Door faces -X (west).
+        // ===== 01: Val Vert entrances (shared prefab) + nº9 forecourt extras from photo =====
+        PlaceValVertEntrances();
         float ex=366.75f, ez=122.4f; float ey=gy(ex,ez);
-        // canopy band on west face
-        var canopyMat=M("canopy",null,null,new Color(.62f,.63f,.64f),0.55f,0.45f); EnsureUrp(canopyMat);
-        box("n9_canopy", new Vector3(ex-0.35f, ey+2.55f, ez), new Vector3(0.55f, 0.35f, 4.2f), canopyMat);
-        box("n9_plaque", new Vector3(ex-0.62f, ey+2.55f, ez), new Vector3(0.04f, 0.28f, 0.28f), M("n9_blue",null,null,new Color(.12f,.22f,.55f),0.3f));
-        { var lamp=GameObject.CreatePrimitive(PrimitiveType.Sphere); Object.DestroyImmediate(lamp.GetComponent<Collider>());
-          lamp.name="n9_wall_lamp"; lamp.transform.SetParent(root.transform,false);
-          lamp.transform.position=new Vector3(ex-0.65f, ey+2.55f, ez+0.85f); lamp.transform.localScale=Vector3.one*0.22f;
-          var lm=M("globe_lamp",null,null,new Color(.95f,.95f,.90f),0.85f); EnsureUrp(lm);
-          lamp.GetComponent<MeshRenderer>().sharedMaterial=lm; }
-        // door + angled panel + sidelights (facing west)
-        box("n9_door", new Vector3(ex-0.12f, ey+1.1f, ez-0.15f), new Vector3(0.08f, 2.15f, 1.0f), metal);
-        box("n9_door_glass", new Vector3(ex-0.16f, ey+1.25f, ez-0.15f), new Vector3(0.02f, 1.5f, 0.75f), glass);
-        box("n9_door_angle", new Vector3(ex-0.14f, ey+1.15f, ez+0.25f), new Vector3(0.06f, 1.7f, 0.55f), metal);
-        box("n9_sideL", new Vector3(ex-0.12f, ey+1.2f, ez-0.95f), new Vector3(0.06f, 1.9f, 0.55f), metal);
-        box("n9_sideL_g", new Vector3(ex-0.15f, ey+1.25f, ez-0.95f), new Vector3(0.02f, 1.6f, 0.4f), glass);
-        box("n9_sideR", new Vector3(ex-0.12f, ey+1.2f, ez+0.95f), new Vector3(0.06f, 1.9f, 0.9f), metal);
-        box("n9_sideR_g", new Vector3(ex-0.15f, ey+1.25f, ez+0.95f), new Vector3(0.02f, 1.6f, 0.7f), glass);
-        box("n9_interphone", new Vector3(ex-0.18f, ey+1.35f, ez+0.55f), new Vector3(0.05f, 0.35f, 0.18f), M("interphone",null,null,new Color(.15f,.15f,.16f),0.4f));
-        box("n9_handle", new Vector3(ex-0.22f, ey+1.05f, ez-0.55f), new Vector3(0.04f, 0.55f, 0.04f), M("handle_brushed",null,null,new Color(.7f,.72f,.74f),0.6f));
-        box("n9_shutter", new Vector3(ex-0.10f, ey+1.4f, ez-2.4f), new Vector3(0.08f, 1.4f, 1.3f), M("shutter_grey",null,null,new Color(.72f,.73f,.74f),0.25f));
-        // asphalt forecourt west of door
         box("n9_forecourt", new Vector3(ex-3.2f, ey+0.02f, ez), new Vector3(5.5f, 0.05f, 7.5f), asp);
         box("n9_kerbL", new Vector3(ex-3.0f, ey+0.08f, ez-3.6f), new Vector3(5.0f, 0.15f, 0.2f), concrete);
         box("n9_kerbR", new Vector3(ex-3.0f, ey+0.08f, ez+3.6f), new Vector3(5.0f, 0.15f, 0.2f), concrete);
