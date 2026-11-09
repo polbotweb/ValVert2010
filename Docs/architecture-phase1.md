@@ -1,6 +1,6 @@
 # Architecture Val Vert 2010 — Phase 1 (audit + squelette)
 
-Date : 2026-11-09 (Europe/Paris). Base : `origin/main` @ `0143568` (merge PR #8).
+Date : 2026-11-09 (Europe/Paris). Base initiale : `origin/main` @ `0143568` (merge PR #8) ; corrections de formulation après merge PR #9.
 Périmètre autorisé : audit en lecture seule + dossiers vides. Aucun déplacement d’asset, aucune migration, aucun correctif visuel.
 
 ## 1. Constat d’audit (mesuré, pas hypothèses)
@@ -20,11 +20,11 @@ Périmètre autorisé : audit en lecture seule + dossiers vides. Aucun déplacem
 | `Tools/generators/` | 17 | Générateurs Python hors Unity |
 | Autres | ProjectSettings, Packages, README, CREDITS, TutorialInfo | |
 
-Hypothèses du plan utilisateur confrontées aux faits :
+Points du plan utilisateur (extraits fournis par le parent ; le fichier joint d’origine n’a pas été relu ici) confrontés aux mesures :
 
-- **« zero runtime »** → **FAUX**. Runtime présent : `Assets/Scripts/SimpleFPS.cs`, `ValVertSmoke.cs`, `Environment/ValVertClock.cs`, `ValVertSeasons.cs`, `ValVertWeather.cs`, `ValVertStreetLights.cs`.
-- **« no prefabs »** → **FAUX**. 5 prefabs suivis sous `Assets/ValVert/Prefabs/` (`fern_b`, `fern_c`, `laurel_cc0`, `shrub_mix_green`, `vv_entrance`). ~119 prefabs sur disque au total (vendor + wrappers ignorés).
-- **« Captures in Assets »** → **FAUX**. `Captures/` est à la racine du dépôt (83 fichiers suivis). Les planches récentes de review vivent hors dépôt sous `/workspace/valvert/review/`.
+- **Voitures / prefabs** — extrait : « les voitures ne sont pas des prefabs, c’est de la donnée brute. » Inspection lecture seule : **0** `.prefab` suivi sous `Assets/Cars/`, **0** prefab véhicule nommé ailleurs dans le dépôt suivi. Le contenu suivi de `Assets/Cars/` est de la donnée brute (`.obj` / `.fbx`, `.mtl`, textures, plaques) ; l’éditeur charge ces maillages directement (ex. `ValVertWoods` → `Assets/Cars/v2/*_lod0.obj`). En contexte seulement : 5 prefabs **non véhicules** sont suivis sous `Assets/ValVert/Prefabs/` (`fern_b`, `fern_c`, `laurel_cc0`, `shrub_mix_green`, `vv_entrance`) ; ~119 prefabs existent aussi sur disque hors suivi (vendor / wrappers ignorés). Cela ne contredit pas l’extrait sur les voitures.
+- **Couche runtime / infra** — extrait : « il n’y a aucune couche runtime — pas de streaming, pas de LODs, pas de services, pas d’events. » Un runtime **spécifique** existe déjà (6 scripts sous `Assets/Scripts/` : `SimpleFPS`, `ValVertSmoke`, `Environment/ValVertClock`, `ValVertSeasons`, `ValVertWeather`, `ValVertStreetLights` — saisons, météo, horloge, éclairage). Cela ne signifie pas que l’architecture proposée (streaming, services, bus d’événements, injection de dépendances) soit en place. Recherche ciblée dans les `.cs` suivis : aucune occurrence de Addressables / `SceneManager.LoadScene` / EventBus / ServiceLocator / Zenject / VContainer / MessagePipe. `LODGroup` apparaît dans `ValVertWeather` (gestion neige sur LOD existants), pas comme système de streaming. Streaming / DI / services / events de la cible future : **non implémentés en phase 1** ; toute affirmation plus large reste à vérifier au cas par cas.
+- **Captures** — le plan source est **inconsistant** (premier paragraphe à la racine, mention ultérieure sous `Assets/`). Emplacement réel mesuré : `Captures/` à la **racine** du dépôt (83 fichiers suivis), pas sous `Assets/`. Planches de review récentes hors dépôt : `/workspace/valvert/review/`.
 
 ### 1.2 Contenu local ignoré (vendor / généré)
 
