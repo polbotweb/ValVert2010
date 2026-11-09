@@ -182,7 +182,8 @@ public static class ValVertDress {
         var prefs=new GameObject[names.Length];
         int ok=0;
         for(int i=0;i<names.Length;i++){
-            prefs[i]=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/ValVert/Prefabs/"+names[i]+".prefab");
+            prefs[i]=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Runtime/World/Vegetation/Prefabs/"+names[i]+".prefab");
+            if(!prefs[i]) prefs[i]=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/ValVert/Prefabs/"+names[i]+".prefab");
             if(prefs[i]) ok++;
         }
         foreach(var t in Terrain.activeTerrains){
@@ -226,7 +227,7 @@ public static class ValVertDress {
     }
     public static Material OvercastSky; public static List<ReflectionProbe> Probes=new List<ReflectionProbe>();
     public static void SkyPost(){ RenderSettings.ambientIntensity=1.25f; RenderSettings.reflectionIntensity=0.8f;
-        string hp="Assets/ValVert/Sky/kloofendal_48d_partly_cloudy_puresky_2k.hdr"; if(!File.Exists(hp)) hp=Directory.GetFiles("Assets/ValVert/Sky","*.hdr")[0];
+        string hp="Assets/_Project/Runtime/World/Sky/kloofendal_48d_partly_cloudy_puresky.hdr"; if(!File.Exists(hp)) hp=Directory.GetFiles("Assets/_Project/Runtime/World/Sky","*.hdr")[0];
         var ti=(TextureImporter)AssetImporter.GetAtPath(hp); ti.textureShape=TextureImporterShape.Texture2D; ti.mipmapEnabled=false; ti.wrapModeU=TextureWrapMode.Repeat; ti.SaveAndReimport();
         var sky=new Material(Shader.Find("Skybox/Panoramic")); sky.SetTexture("_MainTex",AssetDatabase.LoadAssetAtPath<Texture2D>(hp)); sky.SetColor("_Tint",new Color(.62f,.63f,.64f)); sky.SetFloat("_Exposure",0.9f); sky.SetFloat("_Rotation",40);
         AssetDatabase.CreateAsset(sky,"Assets/ValVert/Mats/sky.mat"); RenderSettings.skybox=sky;
@@ -238,7 +239,7 @@ public static class ValVertDress {
         foreach(var c in prof.components) AssetDatabase.AddObjectToAsset(c,prof);
         var go=new GameObject("PostVolume"); var vol=go.AddComponent<Volume>(); vol.isGlobal=true; vol.sharedProfile=prof;
         var urp=GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset; if(urp){ urp.shadowDistance=180; urp.supportsHDR=true; EditorUtility.SetDirty(urp);} 
-        { var ohp="Assets/ValVert/Sky/kloofendal_overcast_puresky_2k.hdr"; var oti=(TextureImporter)AssetImporter.GetAtPath(ohp); oti.textureShape=TextureImporterShape.Texture2D; oti.mipmapEnabled=false; oti.wrapModeU=TextureWrapMode.Repeat; oti.SaveAndReimport();
+        { var ohp="Assets/_Project/Runtime/World/Sky/kloofendal_overcast_puresky_2k.hdr"; var oti=(TextureImporter)AssetImporter.GetAtPath(ohp); oti.textureShape=TextureImporterShape.Texture2D; oti.mipmapEnabled=false; oti.wrapModeU=TextureWrapMode.Repeat; oti.SaveAndReimport();
           OvercastSky=new Material(Shader.Find("Skybox/Panoramic")); OvercastSky.SetTexture("_MainTex",AssetDatabase.LoadAssetAtPath<Texture2D>(ohp)); OvercastSky.SetColor("_Tint",new Color(.5f,.5f,.5f)); OvercastSky.SetFloat("_Exposure",1.0f); AssetDatabase.CreateAsset(OvercastSky,"Assets/ValVert/Mats/sky_overcast.mat"); }
         foreach(var pp in new[]{new Vector3(0,40,0),new Vector3(368,20,130),new Vector3(340,15,215),new Vector3(380,25,100)}){ var rg=new GameObject("ReflProbe"); rg.transform.position=pp; var rp=rg.AddComponent<ReflectionProbe>(); rp.mode=UnityEngine.Rendering.ReflectionProbeMode.Realtime; rp.refreshMode=UnityEngine.Rendering.ReflectionProbeRefreshMode.ViaScripting; rp.size=pp.x==0?new Vector3(1100,300,720):new Vector3(90,60,90); rp.importance=pp.x==0?0:1; rp.resolution=256; Probes.Add(rp); }
         L("sky + post set");

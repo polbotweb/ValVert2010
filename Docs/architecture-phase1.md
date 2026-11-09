@@ -37,7 +37,7 @@ Points du plan utilisateur (extraits fournis par le parent ; le fichier joint d�
 | `Assets/ValVert/Gen/snowtrees/` | prefabs neige | gitignored |
 | Gros maillages `m_Bld_*` / `m_OuterRing` | — | gitignored ; régénérés par `ValVertSetup.Build` |
 
-`Assets/ValVert/Gen/` : ~1195 fichiers suivis vs ~2846 sur disque.  
+`Assets/ValVert/Gen/` : ~1195 fichiers suivis vs ~2846 sur disque.
 `demfix_*` : 144 suivis vs 192 sur disque (scratch local non suivi).
 
 ### 1.3 Scripts éditeur (générateurs / review)

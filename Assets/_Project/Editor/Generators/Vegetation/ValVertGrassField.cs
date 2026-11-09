@@ -1,29 +1,30 @@
 // Val Vert — field grass generator (architecture: World/Vegetation).
 // Placement/batching/exclusions extracted from ValVertWoods.Grass.
-// Texture source is selected by grass_field_config.json:
-//   legacy_homemade → Assets/ValVert/Gen/grass_blades.png (current scene behavior)
-//   pack_cutout     → only after genuine Asset Store 138810 paths are filled in config
+// Config SOURCE: Assets/_Project/Settings/World/Vegetation/grass_field_config.json
 // Pack texture filenames / atlas UV layout are NEVER invented here.
 using UnityEngine;
 using UnityEditor;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 
 public static class ValVertGrassField
 {
     const string GEN = "Assets/ValVert/Gen/";
-    const string ConfigPath = "Assets/_Project/Generated/Vegetation/grass_field_config.json";
+    public const string ConfigPath = "Assets/_Project/Settings/World/Vegetation/grass_field_config.json";
+    public const string ExpectedPackId = "138810";
+    public const string ExpectedSchema = "1";
 
     [System.Serializable]
     public class PackSlot
     {
         public string assetStoreId;
         public string assetStoreUrl;
-        public string status;          // awaiting_acquisition | local_present_unwired | wired
-        public string localRoot;       // Assets/ThirdParty/... once known; null/empty until then
-        public string kindExpected;    // 2d_textures_materials
-        public string albedoRelative;  // filled ONLY after inspecting real package
+        public string status;
+        public string localRoot;
+        public string kindExpected;
+        public string albedoRelative;
         public string note;
     }
 
@@ -31,7 +32,7 @@ public static class ValVertGrassField
     public class GrassConfig
     {
         public string schemaVersion;
-        public string materialMode;    // legacy_homemade | pack_cutout
+        public string materialMode;
         public string legacyAlbedoPath;
         public string rootName;
         public string meshAssetPrefix;
@@ -44,7 +45,8 @@ public static class ValVertGrassField
         public float canopyThresh;
         public float meadowThresh;
         public PackSlot pack;
-        public string[] exclusionMasks;
+        public string[] exclusionMasks; // documentary — Build uses same hard-wired masks as historical Grass
+        public string exclusionMasksNote;
         public string notes;
     }
 
@@ -52,35 +54,50 @@ public static class ValVertGrassField
 
     public static GrassConfig LoadConfig()
     {
-        var text = File.ReadAllText(ConfigPath);
-        return JsonUtility.FromJson<GrassConfig>(text);
+        if (!File.Exists(ConfigPath))
+            throw new System.InvalidOperationException("grass config missing: " + ConfigPath);
+        return JsonUtility.FromJson<GrassConfig>(File.ReadAllText(ConfigPath));
     }
 
-    /// <summary>Non-mutating preflight: returns human-readable errors (empty = OK for current mode).</summary>
+    static bool FinitePositive(float v) => !float.IsNaN(v) && !float.IsInfinity(v) && v > 0f;
+
+    /// <summary>Non-mutating preflight.</summary>
     public static List<string> Preflight(GrassConfig cfg = null)
     {
         cfg = cfg ?? LoadConfig();
         var errs = new List<string>();
         if (cfg == null) { errs.Add("missing config object"); return errs; }
-        if (string.IsNullOrEmpty(cfg.materialMode)) errs.Add("materialMode unset");
+        if (cfg.schemaVersion != ExpectedSchema)
+            errs.Add($"schemaVersion '{cfg.schemaVersion}' != expected '{ExpectedSchema}'");
+        if (!FinitePositive(cfg.chunkSize)) errs.Add("chunkSize must be finite > 0");
+        if (!FinitePositive(cfg.parkSpacing)) errs.Add("parkSpacing must be finite > 0");
+        if (!FinitePositive(cfg.woodsSpacing)) errs.Add("woodsSpacing must be finite > 0");
+        if (string.IsNullOrEmpty(cfg.rootName)) errs.Add("rootName unset");
+        if (string.IsNullOrEmpty(cfg.meshAssetPrefix)) errs.Add("meshAssetPrefix unset");
+
+        if (cfg.pack == null) errs.Add("pack slot missing");
+        else if (cfg.pack.assetStoreId != ExpectedPackId)
+            errs.Add($"pack.assetStoreId '{cfg.pack.assetStoreId}' != {ExpectedPackId}");
+
         if (cfg.materialMode == "legacy_homemade")
         {
-            var p = cfg.legacyAlbedoPath;
-            if (string.IsNullOrEmpty(p) || !File.Exists(p))
-                errs.Add("legacy albedo missing: " + p);
+            if (string.IsNullOrEmpty(cfg.legacyAlbedoPath) || !File.Exists(cfg.legacyAlbedoPath))
+                errs.Add("legacy albedo missing: " + cfg.legacyAlbedoPath);
         }
         else if (cfg.materialMode == "pack_cutout")
         {
-            if (cfg.pack == null) errs.Add("pack slot missing");
+            if (cfg.pack == null) { /* already flagged */ }
             else
             {
-                if (string.IsNullOrEmpty(cfg.pack.localRoot) || !Directory.Exists(cfg.pack.localRoot))
-                    errs.Add("pack localRoot missing/absent (await official path for Asset Store " + cfg.pack.assetStoreId + ")");
+                if (string.IsNullOrEmpty(cfg.pack.localRoot))
+                    errs.Add("pack_cutout requires pack.localRoot");
+                else if (!Directory.Exists(cfg.pack.localRoot))
+                    errs.Add("pack localRoot absent: " + cfg.pack.localRoot);
                 if (string.IsNullOrEmpty(cfg.pack.albedoRelative))
                     errs.Add("pack albedoRelative not set — refuse to invent texture filenames; inspect genuine package first");
-                else
+                else if (!string.IsNullOrEmpty(cfg.pack.localRoot))
                 {
-                    var full = Path.Combine(cfg.pack.localRoot ?? "", cfg.pack.albedoRelative).Replace('\\', '/');
+                    var full = Path.Combine(cfg.pack.localRoot, cfg.pack.albedoRelative).Replace('\\', '/');
                     if (!File.Exists(full)) errs.Add("pack albedo file missing: " + full);
                 }
             }
@@ -102,40 +119,41 @@ public static class ValVertGrassField
 
     static Texture2D ResolveAlbedo(GrassConfig cfg)
     {
+        string path;
         if (cfg.materialMode == "pack_cutout")
+            path = Path.Combine(cfg.pack.localRoot, cfg.pack.albedoRelative).Replace('\\', '/');
+        else
+            path = cfg.legacyAlbedoPath;
+        var ti = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (ti != null)
         {
-            var full = Path.Combine(cfg.pack.localRoot, cfg.pack.albedoRelative).Replace('\\', '/');
-            var ti = (TextureImporter)AssetImporter.GetAtPath(full);
-            if (ti != null)
-            {
-                ti.alphaIsTransparency = true;
-                ti.mipMapsPreserveCoverage = true;
-                ti.alphaTestReferenceValue = 0.5f;
-                ti.wrapMode = TextureWrapMode.Clamp;
-                ti.SaveAndReimport();
-            }
-            return AssetDatabase.LoadAssetAtPath<Texture2D>(full);
-        }
-        var path = cfg.legacyAlbedoPath;
-        var tim = (TextureImporter)AssetImporter.GetAtPath(path);
-        if (tim != null)
-        {
-            tim.alphaIsTransparency = true;
-            tim.mipMapsPreserveCoverage = true;
-            tim.alphaTestReferenceValue = 0.5f;
-            tim.wrapMode = TextureWrapMode.Clamp;
-            tim.SaveAndReimport();
+            ti.alphaIsTransparency = true;
+            ti.mipMapsPreserveCoverage = true;
+            ti.alphaTestReferenceValue = 0.5f;
+            ti.wrapMode = TextureWrapMode.Clamp;
+            ti.SaveAndReimport();
         }
         return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
     }
 
-    /// <summary>Build chunked crossed-quad grass. Same placement policy as historical ValVertWoods.Grass.</summary>
+    /// <summary>
+    /// Idempotent-ish: destroys existing rootName in open scene, reuses mesh assets at stable paths
+    /// (CreateAsset only when missing; otherwise overwrite contents to preserve .meta GUIDs).
+    /// Not claimed byte-proven across machines.
+    /// </summary>
     public static void Build(Terrain terr)
     {
         var cfg = LoadConfig();
         var errs = Preflight(cfg);
         if (errs.Count > 0)
             throw new System.InvalidOperationException("ValVertGrassField preflight failed:\n  " + string.Join("\n  ", errs));
+
+        // Remove prior roots to avoid duplicates on rerun
+        foreach (var existing in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
+        {
+            if (existing && existing.name == cfg.rootName && existing.parent == null)
+                Object.DestroyImmediate(existing.gameObject);
+        }
 
         Physics.SyncTransforms();
         var albedo = ResolveAlbedo(cfg);
@@ -163,7 +181,8 @@ public static class ValVertGrassField
             {
                 float px = x + R() * sp, pz = z + R() * sp;
                 if (px > 531 || pz > 354) continue;
-                if (ValVertDress.S(ex, px, pz) > cfg.exclThreshold || ValVertWoods.Lab(px, pz) != 0 || ValVertWoods.Hidden(new Vector3(px, 0, pz)) || ValVertWoods.ShotClear(px, pz) && new Vector2(px, pz).magnitude < 0) continue;
+                // Removed dead: ShotClear && magnitude<0 (always false)
+                if (ValVertDress.S(ex, px, pz) > cfg.exclThreshold || ValVertWoods.Lab(px, pz) != 0 || ValVertWoods.Hidden(new Vector3(px, 0, pz))) continue;
                 if (Built(px, pz)) continue;
                 float f = ValVertDress.S(fm, px, pz), m = ValVertDress.S(me, px, pz);
                 float p = f > cfg.canopyThresh ? 0.45f : 1f;
@@ -175,7 +194,7 @@ public static class ValVertGrassField
                 if (f > cfg.canopyThresh) tint *= 0.85f;
                 tint.a = 1;
                 float a0 = R() * Mathf.PI;
-                // Legacy homemade atlas: 2 half-width cards. Pack atlas columns filled only after real inspect.
+                // Pack UV atlas pending genuine inspect — keep legacy 2-column homemade layout for now.
                 float u0 = Mathf.Floor(R() * 2) * 0.5f;
                 float uW = 0.5f;
                 for (int q = 0; q < 3; q++)
@@ -191,9 +210,23 @@ public static class ValVertGrassField
                 }
             }
             if (V.Count == 0) continue;
-            var mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
+            var assetPath = GEN + cfg.meshAssetPrefix + chunks + ".asset";
+            Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>(assetPath);
+            bool created = false;
+            if (mesh == null)
+            {
+                mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
+                created = true;
+            }
+            else
+            {
+                mesh.Clear();
+                mesh.indexFormat = IndexFormat.UInt32;
+            }
             mesh.SetVertices(V); mesh.SetNormals(N); mesh.SetUVs(0, U); mesh.SetColors(C); mesh.SetTriangles(T, 0); mesh.RecalculateBounds();
-            AssetDatabase.CreateAsset(mesh, GEN + cfg.meshAssetPrefix + chunks + ".asset");
+            if (created) AssetDatabase.CreateAsset(mesh, assetPath);
+            else EditorUtility.SetDirty(mesh);
+
             var go = new GameObject(cfg.meshAssetPrefix + chunks);
             go.transform.SetParent(root.transform, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
@@ -206,6 +239,7 @@ public static class ValVertGrassField
             total += V.Count / 12;
             chunks++;
         }
+        AssetDatabase.SaveAssets();
         ValVertDress.Counts["_grass_clumps"] = (int)total;
         L($"mode={cfg.materialMode} clumps={total} chunks={chunks}");
     }

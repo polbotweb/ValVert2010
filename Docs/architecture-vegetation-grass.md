@@ -12,7 +12,7 @@ Isoler le système d’herbe de champ sous l’architecture Vegetation, brancher
 | Élément | État |
 |---|---|
 | Extraction placement → `ValVertGrassField` | **fait** (worktree) |
-| Config `grass_field_config.json` | **fait** — mode `legacy_homemade` |
+| Config `Settings/World/Vegetation/grass_field_config.json` | **fait** — mode `legacy_homemade` (SOURCE) |
 | `ValVertWoods.Grass` | **délègue** à `ValVertGrassField.Build` |
 | Pack 138810 sur disque | **absent** — acquisition séparée (DOWNLOAD ONLY) |
 | `materialMode: pack_cutout` | **non câblé** — `localRoot` / `albedoRelative` vides volontairement |
@@ -24,7 +24,7 @@ Isoler le système d’herbe de champ sous l’architecture Vegetation, brancher
 
 ```
 Assets/_Project/Editor/Generators/Vegetation/ValVertGrassField.cs
-Assets/_Project/Generated/Vegetation/grass_field_config.json
+Assets/_Project/Settings/World/Vegetation/grass_field_config.json
 Assets/_Project/Runtime/World/Vegetation/README.md
 Tools/vegetation/preflight.py
 Tools/vegetation/tests/test_grass_config.py

@@ -99,6 +99,9 @@ public static class ValVertEnvWire {
         foreach(var f in sea.foliage) if(f.mat){ f.hasRest=true; if(RestTable(f,out var rc,out var rcut)){ f.restColor=rc; f.restCut=rcut; continue; } if(prevRest.TryGetValue(f.mat,out var pr)){ f.restColor=pr.Item1; f.restCut=pr.Item2; continue; } f.restColor=f.mat.HasProperty(f.colorProp)?f.mat.GetColor(f.colorProp):Color.white; f.restCut=f.mat.HasProperty(f.cutProp)?f.mat.GetFloat(f.cutProp):0.45f; if(f.colorProp=="_BaseColor"&&!f.mat.name.StartsWith("UNS")){ f.restColor=Color.white; f.restCut=0.45f; } }
         clk.month=10; clk.day=20; clk.hour=11f; clk.timeScale=60f;   // default: autumn 2010, late morning (reference photos)
         ValVertWeatherWire.Wire(go);
+        var cfg=AssetDatabase.LoadAssetAtPath<ValVertWorldConfig>("Assets/_Project/Settings/World/ValVertWorldConfig.asset");
+        ValVertRuntimeBootstrap.EnsureOn(go, cfg);
+
         sl.Collect(); Debug.Log("[VV] environment wired: foliage "+sea.foliage.Count+" overlays "+sea.overlays.Count+" wet "+sea.wetSurfaces.Count);
         return go;
     }
