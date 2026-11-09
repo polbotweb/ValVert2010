@@ -1,0 +1,50 @@
+{
+  "source_commit": "22ac5562831841724bb8c4976638cc0134872039",
+  "source_note": "SHA256 of intended tracked binaries immediately before PR #13 untrack (merge parent main tip). Not derived from a post-untrack rebuild.",
+  "environment": {
+    "python": {
+      "major": 3,
+      "minor": 13
+    },
+    "numpy": "2.5.4",
+    "pillow": "13.0.0",
+    "font_dejavu_sans_bold_sha256": "a4c5bc453ca281d90ea079e596da7ae0dfeb5777497c29ec254e76d97ff6f890"
+  },
+  "outputs": {
+    "Assets/ValVert/Gen/sign_danger.png": {
+      "compare": "bytes",
+      "sha256": "a91c6bc8405a5037057986b68b0053f8d9f158ba3fd991b0035954d57ecd3f11"
+    },
+    "Assets/ValVert/Ground/asphalt_ww_diff.jpg": {
+      "compare": "bytes",
+      "sha256": "fbdc563d6824c6aee21dbb827ad767545cba21092022fd79a7ed7b6f6f5d41ca"
+    },
+    "Assets/ValVert/Ground/asphalt_ww_nor.jpg": {
+      "compare": "bytes",
+      "sha256": "1c9f30340f0b078b582841e8cc28d267c0bfc8cdb378aacd7bdb8329a8070d60"
+    },
+    "Assets/ValVert/Ground/asphalt_ww_ms.png": {
+      "compare": "bytes",
+      "sha256": "321cb654178cf8f844a89e28773ce9ced46156ed2c34ff23893d54f1904ccb55"
+    },
+    "Assets/ValVert/Gen/parking.png": {
+      "compare": "pixels_rgb",
+      "sha256": "448ce1bdbfbd0c2a3aa0f3a08d2b3c35ff02fb99cc40778de562e81f6a20f20e",
+      "pixel_digest": {
+        "mode": "RGB",
+        "width": 1024,
+        "height": 2048,
+        "alpha_policy": "convert('RGB') drops any alpha; digest is SHA256 of contiguous RGB byte buffer row-major",
+        "sha256_rgb_bytes": "17ea0a2d53f8c9fac93bad470a7f6313cf6346ff7d5b39af52a749c7d5d27219"
+      }
+    },
+    "Assets/ValVert/Gen/parking_nor.jpg": {
+      "compare": "bytes",
+      "sha256": "75e3ba95e71560553f5ecf8a2fcf7fa64a8f65e0d82eaef15d10b976e77d2496"
+    },
+    "Assets/ValVert/Gen/parking_ms.png": {
+      "compare": "bytes",
+      "sha256": "507ffc2538d90aee812ec46fc0900977080ee4d1f8b7ffa9f5dd905afe824bf5"
+    }
+  }
+}
