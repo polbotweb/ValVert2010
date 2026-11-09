@@ -1,0 +1,4 @@
+# Pinned to the host versions that produced byte-equivalent rebuilds
+# validated 2026-11-09 against pre-PR13 intended assets (commit 22ac556).
+numpy==2.5.4
+Pillow==13.0.0
