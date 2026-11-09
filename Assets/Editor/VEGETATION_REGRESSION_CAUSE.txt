@@ -1,0 +1,49 @@
+CAUSE (first review contact sheets — bare maps)
+==============================================
+
+Symptom
+  /workspace/valvert/review/contact_*.png from the first ValVertReview pass
+  showed no trees/bushes (woods POV bare, stairs bare slope, aerial no forest).
+  Earlier verify/stair_approach_fence_boulder.png (10:03 UTC) still had foliage.
+
+Evidence (ValVertTreeProbe on the same scene after the bad review)
+  Log /workspace/tree_probe.log:
+    [TREE] ValVertTerrain trees=44714 protos=20 dist=800 billboard=800 maxLOD=20000
+    [TREE] proto[0] prefab=NULL path=-
+    ... (proto[0]..proto[19] ALL prefab=NULL)
+    [TREE] ValVertTerrainEast trees=1625 protos=20 ... all prefab=NULL
+    [TREE] ef_ash_1=True renderers=12     ← wrapper prefabs still on disk
+    [TREE] uns_spruce=True
+    [TREE] Assets/ValVert/Veg/tree_small_02_r25.fbx size=132 lfsPointer=True
+
+Root cause
+  TerrainData still held ~46k TreeInstances, but every TreePrototype.prefab
+  reference was null, so Unity drew zero trees.
+  How it happened on this box:
+    1. During push prep we ran `git checkout HEAD -- Assets/ValVert/ValVertTerrain*.asset`
+       to avoid committing LFS-expanded binaries (pointers were 132–133 bytes).
+    2. The working-tree terrain assets became LFS pointer files; Unity then failed
+       to load them ("Failed to load ValVertTerrain.asset") until we copied the
+       LFS object blobs back from .git/lfs/objects/.
+    3. After that restore, TerrainData.treePrototypes[] no longer resolved the
+       local-only/git-ignored EF+UNS wrapper prefabs (Assets/ValVert/Prefabs/ef_*,
+       uns_*), so prefab fields were null at runtime. Instance counts remained.
+  This was NOT "trees deleted from the merged scene on main" as a content change;
+  main still serializes the TerrainData + instance list. The break was local
+  prototype binding after LFS pointer checkout/restore. Vendor packs were present
+  under Assets/InnerverseInteractive and Assets/Realistic Tree the whole time.
+
+Fix
+  ValVertDress.RepairTreePrototypes() rebinds the 20 known wrapper prefabs by name
+  in Vegetation() order and resets treeDistance/billboardDistance=800.
+  ValVertReview guard: abort with Exit(2) if instances<1000 or boundPrefabs<10.
+  Evidence after fix (review3/4 logs):
+    [VV] RepairTreeProtos ValVertTerrain: rebound 20/20, instances=44714, dist=800
+    [VV] REVIEW TREE GUARD instances=46339 protos=40 boundPrefabs=40
+
+Snow / season notes (related review bugs)
+  - sea.Tick() after ForceSnowCover swapped asphalt litter and undid snow albedo;
+    ForceSnowCover now runs after seasons and calls ApplyEffects.
+  - Winter midday white-out: snow particle rate cut (14000→3500 base) + light
+    snowfall for non-midday; midday uses fall=0.20 with particleRateScale=0.5.
+  - Winter dusk uses set-0.6h so residual daylight lets snow albedo read.

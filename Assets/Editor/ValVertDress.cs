@@ -147,6 +147,38 @@ public static class ValVertDress {
         L($"placed LiDAR trees={nt} dropped={nd} shrubs/ferns={ns} total={list.Count}");
         terr.detailObjectDistance=0;
     }
+
+    /// Re-bind terrain treePrototype prefab refs (can go null when TerrainData is LFS-restored
+    /// while vendor/wrapper prefabs are local-only). Keeps existing TreeInstance indices.
+    public static void RepairTreePrototypes(){
+        string[] names={
+            "ef_slot_autumnA","uns_spruce_autumnA","ef_slot_autumnB","uns_spruce_autumnB","ef_slot_green","uns_spruce_green",
+            "uns_bush_a","uns_bush_c","fern_b","fern_c","laurel_cc0",
+            "ef_ash_1","ef_ash_4","ef_ash_5","ef_ash_8","ef_chestnut_3","ef_chestnut_4","ef_chestnut_8","ef_birch_2","ef_birch_6"
+        };
+        var prefs=new GameObject[names.Length];
+        int ok=0;
+        for(int i=0;i<names.Length;i++){
+            prefs[i]=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/ValVert/Prefabs/"+names[i]+".prefab");
+            if(prefs[i]) ok++;
+        }
+        foreach(var t in Terrain.activeTerrains){
+            if(!t||!t.terrainData) continue;
+            var td=t.terrainData;
+            var old=td.treePrototypes;
+            int n=Mathf.Max(old.Length, names.Length);
+            var np=new TreePrototype[n];
+            for(int i=0;i<n;i++){
+                var pref=i<prefs.Length?prefs[i]:null;
+                if(pref==null&&i<old.Length) pref=old[i].prefab;
+                np[i]=new TreePrototype{prefab=pref};
+            }
+            td.treePrototypes=np;
+            t.treeDistance=800f; t.treeBillboardDistance=800f; t.treeMaximumFullLODCount=20000; t.treeLODBiasMultiplier=1f;
+            t.Flush();
+            Debug.Log($"[VV] RepairTreeProtos {t.name}: rebound {ok}/{names.Length}, instances={td.treeInstanceCount}, dist={t.treeDistance}");
+        }
+    }
     static void World(Mesh src,Matrix4x4 m,out Vector3[] v,out int[] t){ v=src.vertices.Select(p=>m.MultiplyPoint3x4(p)).ToArray(); t=src.triangles; }
     public static void Surfaces(GameObject root){
         Directory.CreateDirectory("Assets/ValVert/Mats"); AssetDatabase.Refresh();

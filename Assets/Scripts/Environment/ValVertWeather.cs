@@ -100,8 +100,14 @@ public class ValVertWeather : MonoBehaviour
     {
         if ((shells.Count == 0 && treeSwap.Count == 0) || Mathf.Abs(SnowCover - shellCover) < 0.01f) return; shellCover = SnowCover;
         bool on = SnowCover > 0.03f; foreach (var r in shells) if (r) r.enabled = on;
-        if (on != treesSnowy) { foreach (var (td, orig, snowy) in treeSwap) if (td) { td.treePrototypes = on ? snowy : orig; td.RefreshPrototypes(); } treesSnowy = on; }
-        foreach (var s in shellSrcs) if (s.snow) s.snow.SetFloat("_Cutoff", Mathf.Lerp(0.98f, s.leaf ? 0.1f : 0.16f, Mathf.Sqrt(Mathf.Clamp01(SnowCover))));
+        if (on != treesSnowy) {
+            foreach (var (td, orig, snowy) in treeSwap) if (td) {
+                try { td.treePrototypes = on ? snowy : orig; td.RefreshPrototypes(); }
+                catch (System.Exception e) { Debug.LogWarning("[VV] treeSwap failed: "+e.Message); }
+            }
+            treesSnowy = on;
+        }
+        foreach (var s in shellSrcs) if (s.snow) s.snow.SetFloat("_Cutoff", Mathf.Lerp(0.98f, s.leaf ? 0.04f : 0.08f, Mathf.Pow(Mathf.Clamp01(SnowCover), 0.45f)));
     }
     public Material rainMat, snowMat;
 
@@ -174,6 +180,32 @@ public class ValVertWeather : MonoBehaviour
     }
 
     public void Force(Kind k) { forced = k; lastSim = DateTime.MinValue; }
+    /// Keep ground snow without a white-out: high cover, optional light snowfall (0..1).
+    /// Does not reset lastSim (avoids Settle wiping cover). Call after Tick().
+    public void ForceSnowCover(float cover, float snowfall = 0.12f) {
+        forced = Kind.Snow;
+        SnowCover = Mathf.Clamp01(cover);
+        Snowfall = Mathf.Clamp01(snowfall);
+        TemperatureC = Mathf.Min(TemperatureC, -1f);
+        Cloud = Mathf.Max(Cloud, 0.7f);
+        Fog = Mathf.Clamp(Fog, 0.15f, 0.4f);
+        Rain = 0f;
+        Wetness = 0f;
+        Fog = Mathf.Min(Fog, 0.18f);   // keep flakes visible but don't grey-out white snow albedo
+        Cloud = Mathf.Clamp(Cloud, 0.55f, 0.85f);
+        var clk = ValVertClock.Instance; if (clk) ApplyEffects(clk); else { Particles(); ApplyShells(); }
+        var sea = GetComponent<ValVertSeasons>(); if (sea) { sea.wetness = 0f; sea.snowCover = SnowCover; sea.Tick(); }
+        if (clk) ApplyEffects(clk);
+        // Diagnostic: confirm asphalt/roof actually received a snow step texture
+        foreach (var s in snowMats) {
+            if (!s.mat || s.steps == null) continue;
+            if (s.mat.name != "asphalt_road" && s.mat.name != "roof" && s.mat.name != "forest_fg02" && s.mat.name != "leafground") continue;
+            var cur = s.mat.GetTexture(s.texProp);
+            int i = StepIndex(SnowCover * s.factor, s.steps.Length);
+            Debug.Log($"[VV] SNOWCHK {s.mat.name} stepIdx={i} cur={(cur?cur.name:"null")} step={(i>=0&&i<s.steps.Length&&s.steps[i]?s.steps[i].name:"null")} factor={s.factor}");
+        }
+    }
+    public float particleRateScale = 1f;
 
     void Update()
     {
@@ -198,22 +230,42 @@ public class ValVertWeather : MonoBehaviour
     {
         clk.cloudCover = Cloud; clk.fogAmount = Fog; clk.precip = Mathf.Max(Rain, Snowfall);
         var sea = GetComponent<ValVertSeasons>(); if (sea) { sea.wetness = Wetness; sea.snowCover = SnowCover; }
+        int applied=0, skipped=0;
         foreach (var s in snowMats)
         {
-            if (!s.mat || s.steps == null || s.steps.Length < 2) continue;
+            if (!s.mat || s.steps == null || s.steps.Length < 2) { skipped++; continue; }
             if (!s.orig) s.orig = s.mat.GetTexture(s.texProp);
             int i = StepIndex(SnowCover * s.factor, s.steps.Length);
-            if (i > 0) s.mat.SetTexture(s.texProp, s.steps[i]); else if (!s.seasonal) s.mat.SetTexture(s.texProp, s.orig);
+            var tex = (i > 0) ? s.steps[i] : (!s.seasonal ? s.orig : null);
+            if (i > 0 && tex == null) { skipped++; Debug.LogWarning($"[VV] snowMat {s.mat.name} step[{i}] NULL (len={s.steps.Length})"); continue; }
+            if (tex != null) { s.mat.SetTexture(s.texProp, tex); applied++; }
+            else if (!s.seasonal && s.orig) s.mat.SetTexture(s.texProp, s.orig);
         }
         foreach (var l in snowLayers)
         {
-            if (!l.layer || l.steps == null || l.steps.Length < 2) continue;
+            if (!l.layer || l.steps == null || l.steps.Length < 2) { skipped++; continue; }
             if (!l.orig) l.orig = l.layer.diffuseTexture;
             int i = StepIndex(SnowCover * l.factor, l.steps.Length);
             var t = i == 0 ? null : l.steps[i];
-            if (t && l.layer.diffuseTexture != t) l.layer.diffuseTexture = (Texture2D)t;
-            else if (!t && l.layer.diffuseTexture != l.orig && Array.IndexOf(l.steps, l.layer.diffuseTexture) > 0) l.layer.diffuseTexture = (Texture2D)l.orig;   // undo only our own snow steps (seasonal litter swaps stay)
+            if (i > 0 && t == null) { skipped++; Debug.LogWarning($"[VV] snowLayer {l.layer.name} step[{i}] NULL"); continue; }
+            if (t && l.layer.diffuseTexture != t) { l.layer.diffuseTexture = (Texture2D)t; applied++; }
+            else if (!t && l.layer.diffuseTexture != l.orig && Array.IndexOf(l.steps, l.layer.diffuseTexture) > 0) l.layer.diffuseTexture = (Texture2D)l.orig;
         }
+        // Flatten normals / sheen under snow; restore when clear so later seasons aren't stuck white
+        foreach (var s in snowMats) {
+            if (!s.mat) continue;
+            float snowAmt = Mathf.Clamp01(SnowCover * s.factor);
+            if (s.mat.HasProperty("_BumpScale")) s.mat.SetFloat("_BumpScale", Mathf.Lerp(1.2f, 0.05f, snowAmt));
+            if (s.mat.HasProperty("_Smoothness")) {
+                // asphalt ships at ~0.6; snow matte 0.08; restore mid value when clear (wetSurfaces may refine)
+                s.mat.SetFloat("_Smoothness", Mathf.Lerp(0.45f, 0.08f, snowAmt));
+            }
+            if (s.mat.HasProperty("_BaseColor"))
+                s.mat.SetColor("_BaseColor", snowAmt > 0.05f
+                    ? Color.Lerp(Color.white, new Color(1.05f,1.06f,1.08f), snowAmt)
+                    : Color.white);
+        }
+        if (SnowCover > 0.5f) Debug.Log($"[VV] ApplyEffects snowCover={SnowCover:F2} matsApplied={applied} skipped={skipped} shells={shells.Count} treeSwap={treeSwap.Count} treesSnowy={treesSnowy}");
         foreach (var s in snowTints)
         {
             if (!s.mat) continue;
@@ -229,7 +281,7 @@ public class ValVertWeather : MonoBehaviour
         var cam = viewer ? viewer : (Camera.main ? Camera.main.transform : null);
         if (!rainPS) rainPS = MakePS("vv_rain", rainMat, true);
         if (!snowPS) snowPS = MakePS("vv_snow", snowMat, false);
-        foreach (var (ps, amt, rate) in new[] { (rainPS, Rain, 9000f), (snowPS, Snowfall, 14000f) })
+        foreach (var (ps, amt, rate) in new[] { (rainPS, Rain, 9000f * particleRateScale), (snowPS, Snowfall, 3500f * particleRateScale) })
         {
             if (!ps) continue;
             if (cam) ps.transform.position = cam.position + Vector3.up * 12f + cam.forward * 6f;
@@ -259,7 +311,7 @@ public class ValVertWeather : MonoBehaviour
     public void Prewarm(float seconds = 4f)
     {
         Particles();
-        foreach (var ps in new[] { rainPS, snowPS }) { if (!ps) continue; ps.Clear(true); if (ps.emission.rateOverTime.constant > 0) ps.Simulate(ps == snowPS ? Mathf.Max(seconds, 12f) : seconds, true, true); }
+        foreach (var ps in new[] { rainPS, snowPS }) { if (!ps) continue; ps.Clear(true); if (ps.emission.rateOverTime.constant > 0) ps.Simulate(ps == snowPS ? Mathf.Min(seconds, 3f) : seconds, true, true); }
     }
 
     void OnDisable()

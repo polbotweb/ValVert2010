@@ -100,8 +100,10 @@ public class ValVertSeasons : MonoBehaviour
         {
             if (!w.mat) continue;
             if (!w.cached) { w.c = w.mat.GetColor("_BaseColor"); w.s = w.mat.GetFloat("_Smoothness"); w.cached = true; }
-            w.mat.SetColor("_BaseColor", w.c * Mathf.Lerp(1f, 0.6f, wetness));   // wet = darker albedo
-            w.mat.SetFloat("_Smoothness", Mathf.Min(0.6f, w.s + 0.22f * wetness));   // subtle sheen, no milky grazing-angle glare
+            // When snow-covered, keep dry BaseColor — wet darkening makes snow albedo look like wet asphalt
+            float wAmt = snowy ? 0f : wetness;
+            w.mat.SetColor("_BaseColor", w.c * Mathf.Lerp(1f, 0.6f, wAmt));
+            w.mat.SetFloat("_Smoothness", Mathf.Min(0.6f, w.s + 0.22f * wAmt));
         }
     }
 
