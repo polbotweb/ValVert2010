@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "1",
+  "updated": "2026-11-09",
+  "notes": "Machine-verifiable GUID-preserving moves. Paths are repo-relative. Verify with Tools/architecture/verify_migration.py",
+  "ownership": {
+    "owned": "Original Val Vert content we maintain",
+    "vendor": "Asset Store / third-party under Assets/ThirdParty or gitignored vendor roots",
+    "derived": "Generated or regenerated outputs (often gitignored binaries, metas tracked)",
+    "config": "SOURCE configuration (Settings/), not Generated/"
+  },
+  "moves": [
+    {
+      "from": "Assets/ValVert/Sky/kloofendal_48d_partly_cloudy_puresky.hdr",
+      "to": "Assets/_Project/Runtime/World/Sky/kloofendal_48d_partly_cloudy_puresky.hdr",
+      "kind": "owned",
+      "system": "World/Sky",
+      "preserveMetaGuid": true
+    },
+    {
+      "from": "Assets/ValVert/Sky/kloofendal_overcast_puresky_2k.hdr",
+      "to": "Assets/_Project/Runtime/World/Sky/kloofendal_overcast_puresky_2k.hdr",
+      "kind": "owned",
+      "system": "World/Sky",
+      "preserveMetaGuid": true
+    },
+    {
+      "from": "Assets/ValVert/Prefabs/fern_b.prefab",
+      "to": "Assets/_Project/Runtime/World/Vegetation/Prefabs/fern_b.prefab",
+      "kind": "owned",
+      "system": "World/Vegetation",
+      "preserveMetaGuid": true
+    },
+    {
+      "from": "Assets/ValVert/Prefabs/fern_c.prefab",
+      "to": "Assets/_Project/Runtime/World/Vegetation/Prefabs/fern_c.prefab",
+      "kind": "owned",
+      "system": "World/Vegetation",
+      "preserveMetaGuid": true
+    },
+    {
+      "from": "Assets/ValVert/Prefabs/laurel_cc0.prefab",
+      "to": "Assets/_Project/Runtime/World/Vegetation/Prefabs/laurel_cc0.prefab",
+      "kind": "owned",
+      "system": "World/Vegetation",
+      "preserveMetaGuid": true
+    },
+    {
+      "from": "Assets/ValVert/Prefabs/shrub_mix_green.prefab",
+      "to": "Assets/_Project/Runtime/World/Vegetation/Prefabs/shrub_mix_green.prefab",
+      "kind": "owned",
+      "system": "World/Vegetation",
+      "preserveMetaGuid": true
+    },
+    {
+      "from": "Assets/_Project/Generated/Vegetation/grass_field_config.json",
+      "to": "Assets/_Project/Settings/World/Vegetation/grass_field_config.json",
+      "kind": "config",
+      "system": "World/Vegetation",
+      "preserveMetaGuid": true,
+      "note": "Config is SOURCE, not generated output"
+    }
+  ],
+  "runtimeFoundations": [
+    "Assets/_Project/Runtime/Boot/ValVertEventBus.cs",
+    "Assets/_Project/Runtime/Boot/ValVertServices.cs",
+    "Assets/_Project/Runtime/Boot/ValVertRuntimeBootstrap.cs",
+    "Assets/_Project/Runtime/World/Streaming/ValVertWorldStreaming.cs",
+    "Assets/_Project/Settings/World/ValVertWorldConfig.cs"
+  ],
+  "notMovedYet": [
+    "Assets/ValVert/Mats (shared cross-system materials — migrate by exclusive ownership audit)",
+    "Assets/ValVert/Ground / Gen derived textures (rebuild pipeline owns proven subset)",
+    "Assets/ValVert/Veg grass_medium_* (present, unused in scene field grass)",
+    "Assets/Cars (frozen)",
+    "demtiles / m_Bld (derived)"
+  ],
+  "grassPack138810": {
+    "status": "awaiting_local_cache_import",
+    "integration": "ValVertGrassField pack_cutout — not wired until authentic paths inspected"
+  }
+}

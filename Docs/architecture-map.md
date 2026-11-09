@@ -14,7 +14,7 @@ Objectif : ranger les **systèmes existants** sous `Assets/_Project` sans change
 | `Assets/Scripts/SimpleFPS.cs` | `…/Characters/Player/` | Contrôleur 1re personne |
 | `Assets/Scripts/ValVertSmoke.cs` | `…/Gameplay/QA/` | Smoke test runtime (`-vvsmoke`) — pas un outil Editor |
 
-**Inchangé :** noms de classes, champs sérialisés, GUID `.meta`. `SimpleFPS` reste référencé par la scène (même GUID).  
+**Inchangé :** noms de classes, champs sérialisés, GUID `.meta`. `SimpleFPS` reste référencé par la scène (même GUID).
 **Pas encore :** EventBus, streaming, DI, assembly definitions, services.
 
 Les scripts runtime **n’utilisent pas** `UnityEditor` et ne sont **pas** sous un dossier `Editor`.
@@ -58,3 +58,28 @@ Grass / m_Bld / Setup.Build : non sandboxés dans ce milestone.
 
 - Dossiers `Streaming`, `Vehicles`, `UI`, etc. existent comme squelette : **vides**, pas d’implémentation.
 - Pas de correction art / feuillage / matching photo ici.
+
+## Vegetation / grass field (en cours)
+
+- Générateur isolé : `Editor/Generators/Vegetation/ValVertGrassField.cs` (extrait de `ValVertWoods.Grass`).
+- Config : `Generated/Vegetation/grass_field_config.json` — pack Asset Store 138810 en attente d’acquisition locale.
+- Doc : `Docs/architecture-vegetation-grass.md`.
+- **Pas** de claim d’intégration pack tant que le package authentique n’est pas inspecté.
+
+## Runtime foundations (2026-11-09)
+
+| Piece | Path | Role |
+|---|---|---|
+| Event bus | `Runtime/Boot/ValVertEventBus.cs` | Time/season/weather pub-sub |
+| Services | `Runtime/Boot/ValVertServices.cs` | Lightweight registry |
+| Bootstrap | `Runtime/Boot/ValVertRuntimeBootstrap.cs` | Wired from `ValVertEnvWire` |
+| Streaming | `Runtime/World/Streaming/ValVertWorldStreaming.cs` | Region SetActive by distance |
+| World config SO | `Settings/World/ValVertWorldConfig.asset` | Radii + pack status notes |
+
+## Owned migrations this pass
+
+Sky HDRIs → `Runtime/World/Sky/`. Tracked veg prefabs → `Runtime/World/Vegetation/Prefabs/`.
+Grass SOURCE config → `Settings/World/Vegetation/`. Ledger: `Settings/Architecture/migration_manifest.json`.
+
+Still under `Assets/ValVert/`: shared Mats, Ground, Gen, demtiles (owned/derived mix). Cars frozen.
+

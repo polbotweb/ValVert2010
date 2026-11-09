@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1",
+  "materialMode": "legacy_homemade",
+  "legacyAlbedoPath": "Assets/ValVert/Gen/grass_blades.png",
+  "rootName": "V3_Grass",
+  "meshAssetPrefix": "grass_",
+  "materialName": "grass_blades",
+  "seed": 5,
+  "chunkSize": 32.0,
+  "parkSpacing": 0.75,
+  "woodsSpacing": 1.6,
+  "exclThreshold": 0.3,
+  "canopyThresh": 0.5,
+  "meadowThresh": 0.5,
+  "exclusionMasks": [
+    "veg_excl.png",
+    "canopy_orig.png",
+    "veg_meadow.png",
+    "label_v3.raw",
+    "Built(raycast)",
+    "Hidden(woods_meshes)"
+  ],
+  "pack": {
+    "assetStoreId": "138810",
+    "assetStoreUrl": "https://assetstore.unity.com/packages/2d/textures-materials/nature/grass-flowers-pack-free-138810",
+    "status": "awaiting_acquisition",
+    "localRoot": "",
+    "kindExpected": "2d_textures_materials",
+    "albedoRelative": "",
+    "note": "Fill localRoot + albedoRelative ONLY after genuine package inspect. Do not invent atlas UV or filenames. Import into ignored Assets/ThirdParty/<verified folder>."
+  },
+  "notes": "SOURCE config (not generated). Geometry remains crossed-quad batching (pack is 2D). exclusionMasks listed here are documentary; Build() uses the same named Mask()/Lab/Hidden/Built paths hard-wired to match historical ValVertWoods.Grass. Switch materialMode to pack_cutout only after filling pack.localRoot+albedoRelative from genuine 138810 inspect. Homemade blade path removed only once pack mode proven. Grass mesh rebuild not claimed proven/idempotent until CreateAsset GUID-stable path validated.",
+  "exclusionMasksNote": "documentary; runtime uses veg_excl/canopy_orig/veg_meadow + Lab/Hidden/Built"
+}
