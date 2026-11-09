@@ -55,6 +55,16 @@ Deux paquets gratuits de l'Asset Store (EULA standard) sont utilisés localement
 Pour les retrouver : les ajouter à votre compte Unity, les importer via Package Manager (sans `Packages/manifest.json`, `Demo`, `Settings`, HDRP), puis lancer `ValVertSetup.Build`.
 **Sans eux**, `ValVertSetup.Build` retombe sur les arbres/buissons CC0 Poly Haven (`tree_small_02`, `fir_tree_01`, `shrub_02`) — rendu moins riche mais complet (repli présent dans le code, non re-testé sur un clone vierge).
 
+## Données générées (rebuild)
+
+```bash
+python3 Tools/rebuild/rebuild.py preflight
+python3 Tools/rebuild/rebuild.py rebuild-proven --apply
+python3 Tools/rebuild/tests/test_rebuild.py
+```
+
+Détails : `Docs/generated-rebuild.md`, manifeste `Tools/rebuild/manifest.json`.
+
 ## Construire / tester
 - Régénérer la scène : `Unity -batchmode -quit -projectPath . -executeMethod ValVertSetup.Build`
 - Test environnement : `-executeMethod ValVertEnvWire.Test` (attend `[VV] ENVTEST DONE`)
